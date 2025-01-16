@@ -40,10 +40,10 @@ private:
 	ID3D12Resource* m_pColorBuffer[FrameCount]; // カラーバッファ
 	ID3D12CommandAllocator* m_pCmdAllocator[FrameCount]; // コマンドアロケータ
 	ID3D12GraphicsCommandList* m_pCmdList; // コマンドリスト
-	ID3D12DescriptorHeap* m_pHeapRTV; // 
+	ID3D12DescriptorHeap* m_pHeapRTV; // レンダーターゲットビューのディスクリプタヒープ
 	ID3D12Fence* m_pFence;
 	HANDLE m_FenceEvent;
-	uint64_t m_FenceCounter[FrameCount]; // フレームカウンター
+	uint64_t m_FenceCounter[FrameCount]; // フェンスカウンター
 	uint32_t m_FrameIndex; // フレーム番号
 	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleRTV[FrameCount];
 
