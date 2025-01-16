@@ -315,5 +315,92 @@ bool App::InitD3D()
 		}
 	}
 
+	// ディスクリプタヒープの作成
+	// GPU上のディスクリプタを保存するための配列
+	// 今回はバッファをリソースとする
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.NumDescriptors = FrameCount; // ヒープ内のディスクリプタの数。今回はバッファの分だけ作成する。
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // _SHADER_VISIBLEの場合はシェーダから参照できるようになる。
+	desc.NodeMask = 0; // GPUノードの識別
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // ディスクリプタヒープの種類を指定。RTVはレンダーターゲットビューのこと。
+	
+	hr = m_pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_pHeapRTV));
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	// ディスクリプタヒープの先頭メモリ位置を取得
+	auto handle = m_pHeapRTV->GetCPUDescriptorHandleForHeapStart();
+	// ディスクリプタのメモリサイズを取得
+	// GetDescriptorHandleIncrementSize(type)はデバイス依存の固定値を返す
+	auto incrementSize = m_pDevice->GetDescriptorHandleIncrementSize(desc.Type);
+
+	for (auto i = 0u; i < FrameCount; i++)
+	{
+		// バックバッファを取得
+		hr = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pColorBuffer[i]));
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
+		viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; // どのような次元でリソースにアクセスするか？
+		viewDesc.Texture2D.MipSlice = 0; // ミップマップレベル
+		viewDesc.Texture2D.PlaneSlice = 0; // 使用テクスチャの平面のインデックス
+
+		// レンダーターゲットビューの作成
+		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i], &viewDesc, handle);
+		m_HandleRTV[i] = handle;
+		handle.ptr += incrementSize; // 次のディスクリプタの位置を設定
+	}
+
+	// フェンスの作成
+	{
+		// フェンスカウンタの初期化
+		for (auto i = 0u; i < FrameCount; i++)
+		{
+			m_FenceCounter[i] = 0;
+		}
+
+		// フェンスの作成
+		// CPUとGPUの同期をとるために使う
+		hr = m_pDevice->CreateFence(
+			m_FenceCounter[m_FrameIndex],
+			D3D12_FENCE_FLAG_NONE, // 共有オプション
+			IID_PPV_ARGS(&m_pFence)
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		m_FenceCounter[m_FrameIndex]++;
+
+		// イベントオブジェクトの作成
+		// イベントオブジェクト:シグナル状態と非シグナル状態を持つ。処理が終了したらシグナル状態になり、それを取得して同期をとる。
+		// https://goodfuture.candypop.jp/nifty/overlapped.htm
+		m_FenceEvent = CreateEvent(
+			nullptr, // SECURITY_ATTRIBUTES構造体。子プロセスでのハンドルの継承可能性を指定する。
+			FALSE, // 自動のリセットオブジェクトを作成する。
+			FALSE, // イベントオブジェクトの初期状態をシグナル状態にするか?
+			nullptr // イベントオブジェクトの名前
+		);
+		if (m_FenceEvent == nullptr)
+		{
+			return false;
+		}
+
+		// コマンドリストを閉じる
+		m_pCmdList->Close();
+		return true;
+	}
+
+
+
+
+
 
 }
