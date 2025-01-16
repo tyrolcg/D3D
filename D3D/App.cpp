@@ -235,16 +235,19 @@ bool App::InitD3D()
 		}
 
 		// スワップチェインの設定
+		// https://learn.microsoft.com/ja-jp/windows/win32/api/dxgi/ns-dxgi-dxgi_swap_chain_desc
 		DXGI_SWAP_CHAIN_DESC desc = {};
 		desc.BufferDesc.Width = m_Width;
 		desc.BufferDesc.Height = m_Height;
 		desc.BufferDesc.RefreshRate.Numerator = 60; // リフレッシュレートの分母
 		desc.BufferDesc.RefreshRate.Denominator = 1; // リフレッシュレートの分子
-		desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-		desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-		desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		desc.SampleDesc.Quality = 0;
-		desc.SampleDesc.Count = 1;
+		desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED; // 走査線の処理順の指定をしない
+		desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED; // スケーリングの設定
+		// https://learn.microsoft.com/ja-jp/windows-hardware/drivers/display/scaling-the-desktop-image
+		desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 表示フォーマットの指定
+		// https://learn.microsoft.com/ja-jp/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format
+		desc.SampleDesc.Quality = 0; // 画像の品質レベル
+		desc.SampleDesc.Count = 1; // ピクセルあたりのマルチサンプリング数
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		desc.BufferCount = FrameCount;
 		desc.OutputWindow = m_hWnd;
@@ -260,6 +263,57 @@ bool App::InitD3D()
 			SafeRelease(&pFactory);
 			return false;
 		}
+
+		// IDXGISwapChain3を取得
+		hr = pSwapChain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
+		if (FAILED(hr))
+		{
+			SafeRelease(&pFactory);
+			SafeRelease(&pSwapChain);
+			return false;
+		}
+
+		// 現在のバックバッファのインデックスを取得
+		m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
+		// 不要になったので解放する
+		SafeRelease(&pFactory);
+		SafeRelease(&pSwapChain);
+
+
 	}
+
+	// コマンドアロケータの作成
+	// コマンドリストに割り当てられたメモリを管理する
+	{
+		for (auto i = 0u; i < FrameCount; i++)
+		{
+			hr = m_pDevice->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(&m_pCmdAllocator[i])
+			);
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+	}
+
+	// コマンドリストの作成
+	{
+		hr = m_pDevice->CreateCommandList(
+			0, // 複数のGPUノードがある場合に識別するためのビットマスク。GPUが1つの場合は0を割り当てる
+			D3D12_COMMAND_LIST_TYPE_DIRECT, // コマンドリストのタイプ。Directはコマンドキューに直接登録可能なリスト
+			m_pCmdAllocator[m_FrameIndex], // バックバッファのアロケータを使う
+			nullptr, // パイプラインステート。後で明示的に設定するためnullptrを渡しておく
+			IID_PPV_ARGS(&m_pCmdList) // GUID
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+	}
+
 
 }

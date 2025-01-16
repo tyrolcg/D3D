@@ -36,7 +36,7 @@ private:
 	
 	ID3D12Device* m_pDevice; // デバイス
 	ID3D12CommandQueue* m_pQueue; // コマンドキュー
-	IDXGISwapChain* m_pSwapChain; // スワップチェーン
+	IDXGISwapChain3* m_pSwapChain; // スワップチェーン
 	ID3D12Resource* m_pColorBuffer[FrameCount]; // カラーバッファ
 	ID3D12CommandAllocator* m_pCmdAllocator[FrameCount]; // コマンドアロケータ
 	ID3D12GraphicsCommandList* m_pCmdList; // コマンドリスト
