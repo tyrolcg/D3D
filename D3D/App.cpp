@@ -404,3 +404,76 @@ bool App::InitD3D()
 
 
 }
+
+/// <summary>
+/// 描画処理
+/// </summary>
+void App::Render()
+{
+	// コマンドの記録を開始するための初期化処理
+	m_pCmdAllocator[m_FrameIndex]->Reset();
+	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex], nullptr);
+
+	// リソースバリアの設定
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	// リソースバリアを追加
+	m_pCmdList->ResourceBarrier(
+		1, // リソースバリアの数
+		&barrier
+	);
+
+	// レンダーターゲットの設定
+	m_pCmdList->OMSetRenderTargets(
+		1, // ディスクリプタの数
+		&m_HandleRTV[m_FrameIndex],
+		FALSE,
+		nullptr
+	);
+
+	// クリアカラーの設定
+	float clearColor[] = { 0.25f, 0.25f, 0.25f, 1.0f };
+
+	// レンダーターゲットをクリア
+	m_pCmdList->ClearRenderTargetView(
+		m_HandleRTV[m_FrameIndex],
+		clearColor,
+		0,
+		nullptr
+	);
+
+	// 描画処理
+	{
+		/* do nothing */
+	}
+
+	// リソースバリアの設定
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	// リソースバリアを追加
+	m_pCmdList->ResourceBarrier(1, &barrier);
+
+	// コマンドの記録を終了
+	m_pCmdList->Close();
+
+	// コマンドの実行
+	ID3D12CommandList* ppCmdLists[] = { m_pCmdList };
+	m_pQueue->ExecuteCommandLists(
+		1, // コマンドリストの数
+		ppCmdLists
+	);
+
+	// 画面に表示
+	Present(1);
+}
