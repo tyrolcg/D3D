@@ -358,6 +358,7 @@ bool App::InitD3D()
 	}
 
 	// フェンスの作成
+	// https://glhub.blogspot.com/2016/07/dx12-id3d12fence.html
 	{
 		// フェンスカウンタの初期化
 		for (auto i = 0u; i < FrameCount; i++)
@@ -415,10 +416,12 @@ void App::Render()
 	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex], nullptr);
 
 	// リソースバリアの設定
+	// 利用中のリソースへの割り込み処理を防ぐ
+	// https://learn.microsoft.com/ja-jp/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12
 	D3D12_RESOURCE_BARRIER barrier = {};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION; // 表示する→書き込む、の用途の状態遷移を示すバリア
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE; // 
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex]; // バリアを設定するリソース
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -471,9 +474,40 @@ void App::Render()
 	ID3D12CommandList* ppCmdLists[] = { m_pCmdList };
 	m_pQueue->ExecuteCommandLists(
 		1, // コマンドリストの数
-		ppCmdLists
+		ppCmdLists // コマンドリスト配列のポインタ
 	);
 
 	// 画面に表示
 	Present(1);
+}
+
+/// <summary>
+/// 画面表示と次フレームの準備を行う
+/// </summary>
+/// <param name="interval">垂直同期回数</param>
+void App::Present(uint32_t interval)
+{
+	// 表示処理
+	m_pSwapChain->Present(interval, 0);
+
+	// 現在のフェンスカウンターを取得
+	const auto currentFenceValue = m_FenceCounter[m_FrameIndex];
+	// ここまでにCommandQueueに設定されたコマンドリストを実行すると
+	// フェンスはcurrentFenceValueの値になる
+	m_pQueue->Signal(m_pFence, currentFenceValue);
+
+	// バックバッファの番号を更新
+	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
+	// 次のフレーム(バックバッファ処理)が準備中であれば待機
+	if (m_pFence->GetCompletedValue() < m_FenceCounter[m_FrameIndex])
+	{
+		// フェンスの値が特定の値になったとき、イベントをシグナル状態にする
+		m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
+		// フェンスイベントがシグナル状態になるまで or タイムアウト間隔が経過するまで待機する
+		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+	}
+
+	// 次のフレームのフェンスカウンタを増やす
+	m_FenceCounter[m_FrameIndex] = currentFenceValue + 1;
 }
