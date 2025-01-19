@@ -1,4 +1,5 @@
 #include "App.h"
+#include <cassert>
 
 namespace /* anonymous */
 {
@@ -510,4 +511,59 @@ void App::Present(uint32_t interval)
 
 	// 次のフレームのフェンスカウンタを増やす
 	m_FenceCounter[m_FrameIndex] = currentFenceValue + 1;
+}
+
+void App::WaitGpu()
+{
+	assert(m_pQueue != nullptr);
+	assert(m_pFence != nullptr);
+	assert(m_FenceEvent != nullptr);
+
+	m_pQueue->Signal(m_pFence, m_FenceCounter[m_FrameIndex]);
+
+	m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
+
+	WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+
+	m_FenceCounter[m_FrameIndex]++;
+}
+
+void App::TermD3D()
+{
+	WaitGpu();
+
+	// フェンスイベントの破棄
+	if (m_FenceEvent != nullptr)
+	{
+		CloseHandle(m_FenceEvent);
+		m_FenceEvent = nullptr;
+	}
+
+	SafeRelease(&m_pFence);
+
+	// RTVの破棄
+	SafeRelease(&m_pHeapRTV);
+	for (auto i = 0u; i < FrameCount; i++)
+	{
+		SafeRelease(&m_pColorBuffer[i]);
+	}
+
+	// コマンドリストの破棄
+	SafeRelease(&m_pCmdList);
+
+	// コマンドアロケータの破棄
+	for (auto i = 0u; i < FrameCount; i++)
+	{
+		SafeRelease(&m_pCmdAllocator[i]);
+	}
+
+	// スワップチェインの破棄
+	SafeRelease(&m_pSwapChain);
+
+	// コマンドキューの破棄
+	SafeRelease(&m_pQueue);
+
+	// デバイスの破棄
+	SafeRelease(&m_pDevice);
+
 }
