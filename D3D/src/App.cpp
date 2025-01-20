@@ -200,7 +200,7 @@ bool App::InitD3D()
 	auto hr = D3D12CreateDevice(
 		nullptr, // 使用するビデオアダプタへのポインタ。既定のアダプタを利用する場合はnullptrを渡す。
 		D3D_FEATURE_LEVEL_11_0, // 最小D3D_FEATURE_LEVEL
-		IID_PPV_ARGS(&m_pDevice) // デバイスインターフェースを受け取るポインタ。IID_PPV_ARGSマクロを使うことで、uuidofによるGUIDの取得とvoid**へのキャストを行う。
+		IID_PPV_ARGS(m_pDevice.GetAddressOf()) // デバイスインターフェースを受け取るポインタ。IID_PPV_ARGSマクロを使うことで、uuidofによるGUIDの取得とvoid**へのキャストを行う。
 	);
 	if (FAILED(hr))
 	{
@@ -258,7 +258,7 @@ bool App::InitD3D()
 
 		// スワップチェインの作成
 		IDXGISwapChain* pSwapChain = nullptr;
-		hr = pFactory->CreateSwapChain(m_pQueue, &desc, &pSwapChain);
+		hr = pFactory->CreateSwapChain(m_pQueue.Get(), &desc, &pSwapChain);
 		if (FAILED(hr))
 		{
 			SafeRelease(&pFactory);
@@ -306,7 +306,7 @@ bool App::InitD3D()
 		hr = m_pDevice->CreateCommandList(
 			0, // 複数のGPUノードがある場合に識別するためのビットマスク。GPUが1つの場合は0を割り当てる
 			D3D12_COMMAND_LIST_TYPE_DIRECT, // コマンドリストのタイプ。Directはコマンドキューに直接登録可能なリスト
-			m_pCmdAllocator[m_FrameIndex], // バックバッファのアロケータを使う
+			m_pCmdAllocator[m_FrameIndex].Get(), // バックバッファのアロケータを使う
 			nullptr, // パイプラインステート。後で明示的に設定するためnullptrを渡しておく
 			IID_PPV_ARGS(&m_pCmdList) // GUID
 		);
@@ -353,7 +353,7 @@ bool App::InitD3D()
 		viewDesc.Texture2D.PlaneSlice = 0; // 使用テクスチャの平面のインデックス
 
 		// レンダーターゲットビューの作成
-		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i], &viewDesc, handle);
+		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i].Get(), &viewDesc, handle);
 		m_HandleRTV[i] = handle;
 		handle.ptr += incrementSize; // 次のディスクリプタの位置を設定
 	}
@@ -414,7 +414,7 @@ void App::Render()
 {
 	// コマンドの記録を開始するための初期化処理
 	m_pCmdAllocator[m_FrameIndex]->Reset();
-	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex], nullptr);
+	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex].Get(), nullptr);
 
 	// リソースバリアの設定
 	// 利用中のリソースへの割り込み処理を防ぐ
@@ -422,7 +422,7 @@ void App::Render()
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION; // 表示する→書き込む、の用途の状態遷移を示すバリア
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE; // 
-	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex]; // バリアを設定するリソース
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex].Get(); // バリアを設定するリソース
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -460,7 +460,7 @@ void App::Render()
 	// リソースバリアの設定
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -472,7 +472,7 @@ void App::Render()
 	m_pCmdList->Close();
 
 	// コマンドの実行
-	ID3D12CommandList* ppCmdLists[] = { m_pCmdList };
+	ID3D12CommandList* ppCmdLists[] = { m_pCmdList.Get()};
 	m_pQueue->ExecuteCommandLists(
 		1, // コマンドリストの数
 		ppCmdLists // コマンドリスト配列のポインタ
@@ -495,7 +495,7 @@ void App::Present(uint32_t interval)
 	const auto currentFenceValue = m_FenceCounter[m_FrameIndex];
 	// ここまでにCommandQueueに設定されたコマンドリストを実行すると
 	// フェンスはcurrentFenceValueの値になる
-	m_pQueue->Signal(m_pFence, currentFenceValue);
+	m_pQueue->Signal(m_pFence.Get(), currentFenceValue);
 
 	// バックバッファの番号を更新
 	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
@@ -519,7 +519,7 @@ void App::WaitGpu()
 	assert(m_pFence != nullptr);
 	assert(m_FenceEvent != nullptr);
 
-	m_pQueue->Signal(m_pFence, m_FenceCounter[m_FrameIndex]);
+	m_pQueue->Signal(m_pFence.Get(), m_FenceCounter[m_FrameIndex]);
 
 	m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
 
@@ -539,31 +539,31 @@ void App::TermD3D()
 		m_FenceEvent = nullptr;
 	}
 
-	SafeRelease(&m_pFence);
+	m_pFence.Reset();
 
 	// RTVの破棄
-	SafeRelease(&m_pHeapRTV);
+	m_pHeapRTV.Reset();
 	for (auto i = 0u; i < FrameCount; i++)
 	{
-		SafeRelease(&m_pColorBuffer[i]);
+		m_pColorBuffer[i].Reset();
 	}
 
 	// コマンドリストの破棄
-	SafeRelease(&m_pCmdList);
+	m_pCmdList.Reset();
 
 	// コマンドアロケータの破棄
 	for (auto i = 0u; i < FrameCount; i++)
 	{
-		SafeRelease(&m_pCmdAllocator[i]);
+		m_pCmdAllocator[i].Reset();
 	}
 
 	// スワップチェインの破棄
-	SafeRelease(&m_pSwapChain);
+	m_pSwapChain.Reset();
 
 	// コマンドキューの破棄
-	SafeRelease(&m_pQueue);
+	m_pQueue.Reset();
 
 	// デバイスの破棄
-	SafeRelease(&m_pDevice);
+	m_pDevice.Reset();
 
 }
