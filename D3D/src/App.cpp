@@ -195,6 +195,20 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 /// <returns>正常終了か</returns>
 bool App::InitD3D()
 {
+	// デバッグレイヤーの有効化
+	// APIのエラーや警告を出力できるようにする
+	// https://learn.microsoft.com/ja-jp/windows/win32/direct3d12/understanding-the-d3d12-debug-layer
+#if defined(DEBUG) || defined(_DEBUG)
+	{
+		ComPtr<ID3D12Debug> debug;
+		auto hr = D3D12GetDebugInterface(IID_PPV_ARGS(debug.GetAddressOf()));
+
+		if (SUCCEEDED(hr))
+		{
+			debug->EnableDebugLayer();
+		}
+	}
+#endif
 	// デバイスの作成
 	// https://learn.microsoft.com/ja-jp/windows/win32/api/d3d12/nf-d3d12-d3d12createdevice
 	auto hr = D3D12CreateDevice(
