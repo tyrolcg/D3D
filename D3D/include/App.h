@@ -6,13 +6,40 @@
 #include<d3d12.h>
 #include<dxgi1_4.h>
 #include<wrl/client.h>
+#include<DirectXMath.h>
+#include<d3dcompiler.h>
+
+#include"../shader/SimpleShaderHeader.hlsli"
 
 // Linker
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 
 // Type definition
 template<typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
+template<typename T>
+struct ConstantBufferView
+{
+	D3D12_CONSTANT_BUFFER_VIEW_DESC Desc;
+	D3D12_CPU_DESCRIPTOR_HANDLE HandleCpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE HandleGpu;
+	T* pBuffer; // バッファ先頭アドレス
+};
+
+// structure definition
+struct Vertex
+{
+	DirectX::XMFLOAT3 position;
+	DirectX::XMFLOAT4 color;
+};
+
+struct Transform
+{
+	DirectX::XMMATRIX World;
+	DirectX::XMMATRIX View;
+	DirectX::XMMATRIX Proj;
+};
 
 class App {
 public:
@@ -51,12 +78,31 @@ private:
 	uint32_t m_FrameIndex; // フレーム番号
 	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleRTV[FrameCount];
 
+	ComPtr<ID3D12DescriptorHeap> m_pHeapCBV; // 定数バッファビュー、シェーダリソースビュー、アンオーダードアクセスビューのディスクリプタヒープ
+	ComPtr<ID3D12Resource> m_pVB; // 頂点バッファ
+	ComPtr<ID3D12Resource> m_pCB[FrameCount]; // 定数バッファ
+	ComPtr<ID3D12Resource> m_pIB; // インデックスバッファ
+	ComPtr<ID3D12RootSignature> m_pRootSignature; // ルートシグニチャ
+	ComPtr<ID3D12PipelineState> m_pPSO; // パイプラインステートオブジェクト
+	D3D12_VERTEX_BUFFER_VIEW m_VBV; // 頂点バッファビュー
+	ConstantBufferView<Transform> m_CBV[FrameCount]; // 定数バッファビュー
+	D3D12_INDEX_BUFFER_VIEW m_IBV; // インデックスバッファビュー
+	D3D12_VIEWPORT m_Viewport; // ビューポート
+	D3D12_RECT m_Scissor; // シザー矩形
+	
+
+
+	float m_RotateAngle;
+
+
 	// private methods
 	bool InitApp();
 	void TermApp();
 	bool InitWnd();
 	void TermWnd();
 	void MainLoop();
+	bool OnInit();
+	void OnTerm();
 
 	bool InitD3D();
 	void TermD3D();
@@ -65,4 +111,5 @@ private:
 	void Present(uint32_t interval);
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
+
 };
