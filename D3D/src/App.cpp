@@ -814,7 +814,7 @@ bool App::OnInit()
 		psoDesc.SampleMask = UINT_MAX; // 全サンプル有効
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形プリミティブ
 		psoDesc.NumRenderTargets = 1; // レンダーターゲットは1つ
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // レンダーターゲットのフォーマット
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせる)
 		psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN; // 深度ステンシルビューのフォーマット
 		psoDesc.SampleDesc.Count = 1; // マルチサンプリングしない
 		psoDesc.SampleDesc.Quality = 0; // 標準品質レベル
@@ -854,8 +854,8 @@ void App::Render()
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION; // 表示する→書き込む、の用途の状態遷移を示すバリア
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE; // 
 	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex].Get(); // バリアを設定するリソース
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
 	// リソースバリアを追加
