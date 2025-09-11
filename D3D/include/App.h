@@ -8,6 +8,7 @@
 #include<wrl/client.h>
 #include<DirectXMath.h>
 #include<d3dcompiler.h>
+#include<iostream>
 
 #include"../shader/SimpleShaderHeader.hlsli"
 
@@ -39,6 +40,7 @@ struct Transform
 	DirectX::XMMATRIX World;
 	DirectX::XMMATRIX View;
 	DirectX::XMMATRIX Proj;
+	char padding[64]; // 256バイトアラインメント用のパディング
 };
 
 class App {
@@ -85,11 +87,14 @@ private:
 	ComPtr<ID3D12RootSignature> m_pRootSignature; // ルートシグニチャ
 	ComPtr<ID3D12PipelineState> m_pPSO; // パイプラインステートオブジェクト
 	D3D12_VERTEX_BUFFER_VIEW m_VBV; // 頂点バッファビュー
-	ConstantBufferView<Transform> m_CBV[FrameCount]; // 定数バッファビュー
+	ConstantBufferView<Transform> m_CBV[FrameCount * 2]; // 定数バッファビュー
 	D3D12_INDEX_BUFFER_VIEW m_IBV; // インデックスバッファビュー
 	D3D12_VIEWPORT m_Viewport; // ビューポート
 	D3D12_RECT m_Scissor; // シザー矩形
 	
+	ComPtr<ID3D12Resource> m_pDB; // 深度バッファ
+	ComPtr<ID3D12DescriptorHeap> m_pHeapDSV; // 深度ステンシルビューのディスクリプタヒープ
+	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleDSV; // 深度ステンシルビューのハンドル
 
 
 	float m_RotateAngle;

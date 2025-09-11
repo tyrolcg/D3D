@@ -59,6 +59,16 @@ bool App::InitApp()
 	return true;
 }
 
+/// <summary>
+/// アプリケーションの終了処理
+/// </summary>
+void App::TermApp()
+{
+	OnTerm();
+	TermD3D();
+	TermWnd();
+}
+
 ///<summary>
 /// ウィンドウの初期化処理
 ///</summary>
@@ -159,14 +169,6 @@ void App::MainLoop()
 	}
 }
 
-/// <summary>
-/// アプリケーションの終了処理
-/// </summary>
-void App::TermApp()
-{
-	// ウィンドウを終了
-	TermWnd();
-}
 
 /// <summary>
 /// ウィンドウの終了処理
@@ -352,6 +354,77 @@ bool App::InitD3D()
 		}
 	}
 
+	// 深度ステンシルバッファ
+	{
+		D3D12_HEAP_PROPERTIES depthStencilHeapProp = {};
+		depthStencilHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+		depthStencilHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		depthStencilHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		depthStencilHeapProp.CreationNodeMask = 1;
+		depthStencilHeapProp.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC depthStencilDesc = {};
+		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Alignment = 0;
+		depthStencilDesc.Width = m_Width;
+		depthStencilDesc.Height = m_Height;
+		depthStencilDesc.DepthOrArraySize = 1;
+		depthStencilDesc.MipLevels = 1;
+		depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT; // 32ビット浮動小数点数
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
+		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		// デプスバッファをクリアするための設定
+		D3D12_CLEAR_VALUE depthClearValue = {};
+		depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+		depthClearValue.DepthStencil.Depth = 1.0f; // 1.0fで初期化
+		depthClearValue.DepthStencil.Stencil = 0; // ステンシル値は使わないので0で初期化
+
+		// リソースの生成
+		hr = m_pDevice->CreateCommittedResource(
+			&depthStencilHeapProp,
+			D3D12_HEAP_FLAG_NONE,
+			&depthStencilDesc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE, // 深度値を書き込む
+			&depthClearValue, // 最適化のためにクリア値を設定
+			IID_PPV_ARGS(m_pDB.GetAddressOf())
+		);
+
+		if (FAILED(hr))
+		{
+			std::cerr << "Failed to create depth stencil buffer." << std::endl;
+			return false;
+		}
+
+		// ディスクリプタヒープ
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1; // デプスステンシルビューは1つだけ
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // デプスステンシルビュー用
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		dsvHeapDesc.NodeMask = 0;
+
+		hr = m_pDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_pHeapDSV.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			std::cerr << "Failed to create DSV descriptor heap." << std::endl;
+			return false;
+		}
+
+		auto dsvHandle = m_pHeapDSV->GetCPUDescriptorHandleForHeapStart();
+		auto incrementSize = m_pDevice->GetDescriptorHandleIncrementSize(dsvHeapDesc.Type);
+
+		// デプスステンシルビューの設定
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+		dsvDesc.Texture2D.MipSlice = 0;
+		m_pDevice->CreateDepthStencilView(m_pDB.Get(), &dsvDesc, dsvHandle);
+		m_HandleDSV = dsvHandle;
+	}
+
 	// ディスクリプタヒープの作成
 	// GPU上のディスクリプタを保存するための配列
 	// 今回はバッファをリソースとする
@@ -488,7 +561,7 @@ bool App::OnInit()
 			return false;
 		}
 
-		// マッピング
+		// 頂点バッファのポインタを取得
 		void* ptr = nullptr;
 		hr = m_pVB->Map(0, nullptr, &ptr);
 		if (FAILED(hr))
@@ -560,16 +633,17 @@ bool App::OnInit()
 		memcpy(ptr, indices, sizeof(indices));
 		m_pIB->Unmap(0, nullptr);
 		// インデックスバッファビューの設定
+		m_IBV = {};
 		m_IBV.BufferLocation = m_pIB->GetGPUVirtualAddress();
 		m_IBV.Format = DXGI_FORMAT_R32_UINT; // インデックスのフォーマット。uint32_tなのでR32_UINT
-		m_IBV.SizeInBytes = static_cast<UINT>(sizeof(indices));
+		m_IBV.SizeInBytes = sizeof(indices);
 	}
 	// 定数バッファ用のヒープを作成
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC cbvDesc = {};
 		cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		cbvDesc.NodeMask = 0;
-		cbvDesc.NumDescriptors = 1 * FrameCount;
+		cbvDesc.NumDescriptors = 2 * FrameCount;
 		cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 		auto hr = m_pDevice->CreateDescriptorHeap(
@@ -608,7 +682,7 @@ bool App::OnInit()
 
 		auto incrementSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		
-		for (int i = 0; i < FrameCount; i++)
+		for (int i = 0; i < FrameCount * 2; i++)
 		{
 			auto hr = m_pDevice->CreateCommittedResource(
 				&prop,
@@ -690,7 +764,7 @@ bool App::OnInit()
 		samplerDesc.ShaderRegister = 0; // s0レジスタにバインド
 		samplerDesc.RegisterSpace = 0; // レジスタスペース0にバインド
 		samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
-		
+
 		// ルートシグネチャの設定
 		D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
 		rootDesc.Flags = flag;
@@ -762,6 +836,14 @@ bool App::OnInit()
 		rasterizerDesc.ForcedSampleCount = 0; // 強制的にサンプル数を設定しない
 		rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF; // 保守的ラスタライザを無効にする
 		// REF: https://learn.microsoft.com/en-us/windows/win32/direct3d12/conservative-rasterization
+
+		// 深度ステンシルステートの設定
+		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+		depthStencilDesc.DepthEnable = true; // 深度テストを有効にする
+		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // 深度値の書き込みを許可
+		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // 深度テストの条件
+		depthStencilDesc.StencilEnable = false; // ステンシルテストを無効にする
+
 		
 		// レンダーターゲットのブレンドステート
 		D3D12_RENDER_TARGET_BLEND_DESC blendDesc = {};
@@ -809,13 +891,13 @@ bool App::OnInit()
 		psoDesc.PS = { pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize() }; // ピクセルシェーダ
 		psoDesc.BlendState = blendState; // ブレンドステート
 		psoDesc.RasterizerState = rasterizerDesc; // ラスタライザステート
-		psoDesc.DepthStencilState.DepthEnable = false; // 深度バッファを使用しない
+		psoDesc.DepthStencilState = depthStencilDesc; // 深度バッファを使用
 		psoDesc.DepthStencilState.StencilEnable = false; // ステンシルバッファを使用しない
 		psoDesc.SampleMask = UINT_MAX; // 全サンプル有効
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形プリミティブ
 		psoDesc.NumRenderTargets = 1; // レンダーターゲットは1つ
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせる)
-		psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN; // 深度ステンシルビューのフォーマット
+		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT; // 深度ステンシルビューのフォーマット
 		psoDesc.SampleDesc.Count = 1; // マルチサンプリングしない
 		psoDesc.SampleDesc.Quality = 0; // 標準品質レベル
 		psoDesc.NodeMask = 0; // 単一GPUノード
@@ -840,7 +922,11 @@ void App::Render()
 	// 更新処理
 	{
 		m_RotateAngle += 0.01f;
-		m_CBV[m_FrameIndex].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle);
+
+		// 2つの正方形を回転・拡大縮小させて配置
+		m_CBV[m_FrameIndex * 2].pBuffer->World = DirectX::XMMatrixRotationZ(m_RotateAngle + DirectX::XMConvertToRadians(45));
+
+		m_CBV[m_FrameIndex * 2 + 1].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle) * DirectX::XMMatrixScaling(2, 0.5f, 1);
 	}
 
 	// コマンドの記録を開始するための初期化処理
@@ -869,7 +955,7 @@ void App::Render()
 		1, // ディスクリプタの数
 		&m_HandleRTV[m_FrameIndex],
 		FALSE,
-		nullptr
+		&m_HandleDSV
 	);
 
 	// クリアカラーの設定
@@ -883,19 +969,34 @@ void App::Render()
 		nullptr
 	);
 
+	// 深度バッファをクリア
+	m_pCmdList->ClearDepthStencilView(
+		m_HandleDSV,
+		D3D12_CLEAR_FLAG_DEPTH, // 深度のみクリア
+		1.0f, // クリアする深度の値
+		0, // クリアするステンシルの値
+		0,
+		nullptr);
+
 
 	// 描画処理
 	{
 		m_pCmdList->SetGraphicsRootSignature(m_pRootSignature.Get());
-		m_pCmdList->SetPipelineState(m_pPSO.Get());
 		m_pCmdList->SetDescriptorHeaps(1, m_pHeapCBV.GetAddressOf());
-		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex].Desc.BufferLocation);
+		m_pCmdList->SetPipelineState(m_pPSO.Get());
+
 		m_pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_pCmdList->IASetVertexBuffers(0, 1, &m_VBV);
 		m_pCmdList->IASetIndexBuffer(&m_IBV);
-		m_pCmdList->RSSetScissorRects(1, &m_Scissor);
-		m_pCmdList->RSSetViewports(1, &m_Viewport);
 
+		m_pCmdList->RSSetViewports(1, &m_Viewport);
+		m_pCmdList->RSSetScissorRects(1, &m_Scissor);
+
+
+		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2].Desc.BufferLocation);
+		m_pCmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2 + 1].Desc.BufferLocation);
 		m_pCmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 	}
 
@@ -1012,7 +1113,7 @@ void App::TermD3D()
 
 void App::OnTerm() 
 {
-	for (auto i = 0; i < FrameCount; i++)
+	for (auto i = 0; i < FrameCount * 2; i++)
 	{
 		if (m_pCB[i].Get() != nullptr)
 		{
