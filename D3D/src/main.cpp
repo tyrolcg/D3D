@@ -1,7 +1,7 @@
 #include "App.h"
 
 /// <summary>
-/// ƒƒCƒ“ƒGƒ“ƒgƒŠ[ƒ|ƒCƒ“ƒg
+/// ãƒ¡ã‚¤ãƒ³ã‚¨ãƒ³ãƒˆãƒªãƒ¼ãƒã‚¤ãƒ³ãƒˆ
 /// </summary>
 /// <param name="argc"></param>
 /// <param name="argv"></param>
@@ -9,12 +9,12 @@
 /// <returns></returns>
 int wmain(int argc, wchar_t argv, wchar_t** evnp)
 {
-	// ƒvƒƒOƒ‰ƒ€I—¹Žž‚Ìƒƒ‚ƒŠƒŠ[ƒNƒ`ƒFƒbƒNAo—Í‚ðs‚¤
+	// ãƒ—ãƒ­ã‚°ãƒ©ãƒ çµ‚äº†æ™‚ã®ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ãƒã‚§ãƒƒã‚¯ã€å‡ºåŠ›ã‚’è¡Œã†
 #if defined(DEBUG) || defined(_DEBUG)
 	{
 		_CrtSetDbgFlag(
-			_CRTDBG_ALLOC_MEM_DF    // ƒfƒoƒbƒO—p‚Ìƒq[ƒvƒƒ‚ƒŠ‚ªŽg‚í‚ê‚é‚æ‚¤‚É‚È‚é
-			| _CRTDBG_LEAK_CHECK_DF // ƒvƒƒOƒ‰ƒ€I—¹Žž‚Éƒƒ‚ƒŠƒŠ[ƒNƒ`ƒFƒbƒN‚ðs‚¤
+			_CRTDBG_ALLOC_MEM_DF    // ãƒ‡ãƒãƒƒã‚°ç”¨ã®ãƒ’ãƒ¼ãƒ—ãƒ¡ãƒ¢ãƒªãŒä½¿ã‚ã‚Œã‚‹ã‚ˆã†ã«ãªã‚‹
+			| _CRTDBG_LEAK_CHECK_DF // ãƒ—ãƒ­ã‚°ãƒ©ãƒ çµ‚äº†æ™‚ã«ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯ãƒã‚§ãƒƒã‚¯ã‚’è¡Œã†
 		);
 	}
 #endif

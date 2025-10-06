@@ -16,6 +16,7 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 
 // Type definition
 template<typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
@@ -25,7 +26,7 @@ struct ConstantBufferView
 	D3D12_CONSTANT_BUFFER_VIEW_DESC Desc;
 	D3D12_CPU_DESCRIPTOR_HANDLE HandleCpu;
 	D3D12_GPU_DESCRIPTOR_HANDLE HandleGpu;
-	T* pBuffer; // ƒoƒbƒtƒ@æ“ªƒAƒhƒŒƒX
+	T* pBuffer; // ãƒãƒƒãƒ•ã‚¡å…ˆé ­ã‚¢ãƒ‰ãƒ¬ã‚¹
 };
 
 // structure definition
@@ -40,7 +41,14 @@ struct Transform
 	DirectX::XMMATRIX World;
 	DirectX::XMMATRIX View;
 	DirectX::XMMATRIX Proj;
-	char padding[64]; // 256ƒoƒCƒgƒAƒ‰ƒCƒ“ƒƒ“ƒg—p‚ÌƒpƒfƒBƒ“ƒO
+	char padding[64]; // 256ãƒã‚¤ãƒˆã‚¢ãƒ©ã‚¤ãƒ³ãƒ¡ãƒ³ãƒˆç”¨ã®ãƒ‘ãƒ‡ã‚£ãƒ³ã‚°
+};
+
+struct Texture
+{
+	ComPtr<ID3D12Resource> pResource;
+	D3D12_CPU_DESCRIPTOR_HANDLE HandleCpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE HandleGpu;
 };
 
 class App {
@@ -59,43 +67,44 @@ public:
 
 private:
 	// private variables
-	// ƒnƒ“ƒhƒ‹‚Æ‚ÍAƒŠƒ\[ƒX‚ğQÆ‚·‚é‚½‚ß‚Ì¯•Êq(ƒ|ƒCƒ“ƒ^‚È‚Ç)
-	HINSTANCE m_hInst; // ƒCƒ“ƒXƒ^ƒ“ƒXƒnƒ“ƒhƒ‹
-	HWND m_hWnd;		 // ƒEƒBƒ“ƒhƒEƒnƒ“ƒhƒ‹
+	// ãƒãƒ³ãƒ‰ãƒ«ã¨ã¯ã€ãƒªã‚½ãƒ¼ã‚¹ã‚’å‚ç…§ã™ã‚‹ãŸã‚ã®è­˜åˆ¥å­(ãƒã‚¤ãƒ³ã‚¿ãªã©)
+	HINSTANCE m_hInst; // ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãƒãƒ³ãƒ‰ãƒ«
+	HWND m_hWnd;		 // ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãƒãƒ³ãƒ‰ãƒ«
 	uint32_t m_Width;
 	uint32_t m_Height;
 
-	static const uint32_t FrameCount = 2; // ƒtƒŒ[ƒ€ƒoƒbƒtƒ@”
+	static const uint32_t FrameCount = 2; // ãƒ•ãƒ¬ãƒ¼ãƒ ãƒãƒƒãƒ•ã‚¡æ•°
 	
-	ComPtr<ID3D12Device> m_pDevice; // ƒfƒoƒCƒX
-	ComPtr<ID3D12CommandQueue> m_pQueue; // ƒRƒ}ƒ“ƒhƒLƒ…[
-	ComPtr<IDXGISwapChain3> m_pSwapChain; // ƒXƒƒbƒvƒ`ƒF[ƒ“
-	ComPtr<ID3D12Resource> m_pColorBuffer[FrameCount]; // ƒJƒ‰[ƒoƒbƒtƒ@
-	ComPtr<ID3D12CommandAllocator> m_pCmdAllocator[FrameCount]; // ƒRƒ}ƒ“ƒhƒAƒƒP[ƒ^
-	ComPtr<ID3D12GraphicsCommandList> m_pCmdList; // ƒRƒ}ƒ“ƒhƒŠƒXƒg
-	ComPtr<ID3D12DescriptorHeap> m_pHeapRTV; // ƒŒƒ“ƒ_[ƒ^[ƒQƒbƒgƒrƒ…[‚ÌƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv
+	ComPtr<ID3D12Device> m_pDevice; // ãƒ‡ãƒã‚¤ã‚¹
+	ComPtr<ID3D12CommandQueue> m_pQueue; // ã‚³ãƒãƒ³ãƒ‰ã‚­ãƒ¥ãƒ¼
+	ComPtr<IDXGISwapChain3> m_pSwapChain; // ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³
+	ComPtr<ID3D12Resource> m_pColorBuffer[FrameCount]; // ã‚«ãƒ©ãƒ¼ãƒãƒƒãƒ•ã‚¡
+	ComPtr<ID3D12CommandAllocator> m_pCmdAllocator[FrameCount]; // ã‚³ãƒãƒ³ãƒ‰ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿
+	ComPtr<ID3D12GraphicsCommandList> m_pCmdList; // ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆ
+	ComPtr<ID3D12DescriptorHeap> m_pHeapRTV; // ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãƒ“ãƒ¥ãƒ¼ã®ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—
 	ComPtr<ID3D12Fence> m_pFence;
 	HANDLE m_FenceEvent;
-	uint64_t m_FenceCounter[FrameCount]; // ƒtƒFƒ“ƒXƒJƒEƒ“ƒ^[
-	uint32_t m_FrameIndex; // ƒtƒŒ[ƒ€”Ô†
+	uint64_t m_FenceCounter[FrameCount]; // ãƒ•ã‚§ãƒ³ã‚¹ã‚«ã‚¦ãƒ³ã‚¿ãƒ¼
+	uint32_t m_FrameIndex; // ãƒ•ãƒ¬ãƒ¼ãƒ ç•ªå·
 	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleRTV[FrameCount];
 
-	ComPtr<ID3D12DescriptorHeap> m_pHeapCBV; // ’è”ƒoƒbƒtƒ@ƒrƒ…[AƒVƒF[ƒ_ƒŠƒ\[ƒXƒrƒ…[AƒAƒ“ƒI[ƒ_[ƒhƒAƒNƒZƒXƒrƒ…[‚ÌƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv
-	ComPtr<ID3D12Resource> m_pVB; // ’¸“_ƒoƒbƒtƒ@
-	ComPtr<ID3D12Resource> m_pCB[FrameCount]; // ’è”ƒoƒbƒtƒ@
-	ComPtr<ID3D12Resource> m_pIB; // ƒCƒ“ƒfƒbƒNƒXƒoƒbƒtƒ@
-	ComPtr<ID3D12RootSignature> m_pRootSignature; // ƒ‹[ƒgƒVƒOƒjƒ`ƒƒ
-	ComPtr<ID3D12PipelineState> m_pPSO; // ƒpƒCƒvƒ‰ƒCƒ“ƒXƒe[ƒgƒIƒuƒWƒFƒNƒg
-	D3D12_VERTEX_BUFFER_VIEW m_VBV; // ’¸“_ƒoƒbƒtƒ@ƒrƒ…[
-	ConstantBufferView<Transform> m_CBV[FrameCount * 2]; // ’è”ƒoƒbƒtƒ@ƒrƒ…[
-	D3D12_INDEX_BUFFER_VIEW m_IBV; // ƒCƒ“ƒfƒbƒNƒXƒoƒbƒtƒ@ƒrƒ…[
-	D3D12_VIEWPORT m_Viewport; // ƒrƒ…[ƒ|[ƒg
-	D3D12_RECT m_Scissor; // ƒVƒU[‹éŒ`
+	ComPtr<ID3D12DescriptorHeap> m_pHeapCBV_SRV_UAV; // å®šæ•°ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼ã€ã‚·ã‚§ãƒ¼ãƒ€ãƒªã‚½ãƒ¼ã‚¹ãƒ“ãƒ¥ãƒ¼ã€ã‚¢ãƒ³ã‚ªãƒ¼ãƒ€ãƒ¼ãƒ‰ã‚¢ã‚¯ã‚»ã‚¹ãƒ“ãƒ¥ãƒ¼ã®ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—
+	ComPtr<ID3D12Resource> m_pVB; // é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡
+	ComPtr<ID3D12Resource> m_pCB[FrameCount]; // å®šæ•°ãƒãƒƒãƒ•ã‚¡
+	ComPtr<ID3D12Resource> m_pIB; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒãƒƒãƒ•ã‚¡
+	ComPtr<ID3D12RootSignature> m_pRootSignature; // ãƒ«ãƒ¼ãƒˆã‚·ã‚°ãƒ‹ãƒãƒ£
+	ComPtr<ID3D12PipelineState> m_pPSO; // ãƒ‘ã‚¤ãƒ—ãƒ©ã‚¤ãƒ³ã‚¹ãƒ†ãƒ¼ãƒˆã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+	D3D12_VERTEX_BUFFER_VIEW m_VBV; // é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼
+	ConstantBufferView<Transform> m_CBV[FrameCount * 2]; // å®šæ•°ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼
+	D3D12_INDEX_BUFFER_VIEW m_IBV; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼
+	D3D12_VIEWPORT m_Viewport; // ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆ
+	D3D12_RECT m_Scissor; // ã‚·ã‚¶ãƒ¼çŸ©å½¢
 	
-	ComPtr<ID3D12Resource> m_pDB; // [“xƒoƒbƒtƒ@
-	ComPtr<ID3D12DescriptorHeap> m_pHeapDSV; // [“xƒXƒeƒ“ƒVƒ‹ƒrƒ…[‚ÌƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv
-	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleDSV; // [“xƒXƒeƒ“ƒVƒ‹ƒrƒ…[‚Ìƒnƒ“ƒhƒ‹
+	ComPtr<ID3D12Resource> m_pDB; // æ·±åº¦ãƒãƒƒãƒ•ã‚¡
+	ComPtr<ID3D12DescriptorHeap> m_pHeapDSV; // æ·±åº¦ã‚¹ãƒ†ãƒ³ã‚·ãƒ«ãƒ“ãƒ¥ãƒ¼ã®ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—
+	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleDSV; // æ·±åº¦ã‚¹ãƒ†ãƒ³ã‚·ãƒ«ãƒ“ãƒ¥ãƒ¼ã®ãƒãƒ³ãƒ‰ãƒ«
 
+	Texture m_Texture; // ãƒ†ã‚¯ã‚¹ãƒãƒ£
 
 	float m_RotateAngle;
 

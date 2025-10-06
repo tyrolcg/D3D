@@ -31,19 +31,10 @@ VSOutput main(VSInput input)
 	return output;
 }
 
-struct PSOutput
-{
-	float4 Color : SV_TARGET0;
-};
-
 Texture2D tex : register(t0);
 SamplerState samp : register(s0);
 
-PSOutput main(VSOutput input)
+float4 ps_main(VSOutput input) : SV_TARGET
 {
-	PSOutput output = (PSOutput)0;
-
-	output.Color = tex.Sample(samp, input.Uv);
-
-	return output;
+	return tex.Sample(samp, input.Uv);
 }
