@@ -4,11 +4,15 @@
 #include "ResourceUploadBatch.h"
 #include "VertexTypes.h"
 #include <cassert>
+#include "Mesh.h" 
 
 namespace /* anonymous */
 {
 	const auto ClassName = TEXT("SampleWindowClass");
 }
+
+std::vector<Mesh> App::m_Meshes;
+std::vector<Material> App::m_Materials;
 
 template<typename T>
 void SafeRelease(T **ppT)
@@ -530,15 +534,18 @@ bool App::InitD3D()
 
 bool App::OnInit()
 {
+	// --- メッシュロード処理を追加 ---
+	if (!LoadMesh("D3D/model/bun_zipper_res2.ply", m_Meshes, m_Materials)) {
+		std::cerr << "Failed to load mesh: D3D/model/bun_zipper_res2.ply" << std::endl;
+		return false;
+	}
+	// --- ここまで追加 ---
+
 	{
 
 		// 頂点データ
-		DirectX::VertexPositionTexture vertices[] = {
-			{DirectX::XMFLOAT3(-1, 1, 0), DirectX::XMFLOAT2(0,0)},
-			{DirectX::XMFLOAT3(1, 1, 0), DirectX::XMFLOAT2(1,0)},
-			{DirectX::XMFLOAT3(1, -1, 0), DirectX::XMFLOAT2(1,1)},
-			{DirectX::XMFLOAT3(-1, -1, 0), DirectX::XMFLOAT2(0,1)}
-		};
+		auto size = sizeof(DirectX::VertexPositionTexture) * m_Meshes[0].Vertices.size();
+		auto vertices = m_Meshes[0].Vertices.data();
 
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_UPLOAD; // GPU転送するための宣言。CPU書き込みが1回、GPU読み込みが1回のデータが適している
@@ -600,10 +607,9 @@ bool App::OnInit()
 
 	// インデックスバッファビュー
 	{
-		uint32_t indices[] = {
-			0,1,2,
-			0,2,3
-		};
+		auto size = sizeof(uint32_t) * m_Meshes[0].Indices.size();
+		auto indices = m_Meshes[0].Vertices.data();
+
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
 		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -1016,7 +1022,7 @@ bool App::OnInit()
 
 		// グラフィックスパイプラインステートの設定
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.InputLayout = { elementDesc, _countof(elementDesc) }; // 頂点入力レイアウト
+		psoDesc.InputLayout = MeshVertex::InputLayout; // 頂点入力レイアウト
 		psoDesc.pRootSignature = m_pRootSignature.Get(); // ルートシグネチャ
 		psoDesc.VS = { pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize() }; // 頂点シェーダ
 		psoDesc.PS = { pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize() }; // ピクセルシェーダ
@@ -1127,11 +1133,8 @@ void App::Render()
 
 		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2].Desc.BufferLocation);
 		m_pCmdList->SetGraphicsRootDescriptorTable(1, m_Texture.HandleGpu);
-		m_pCmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
-		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2 + 1].Desc.BufferLocation);
-		m_pCmdList->SetGraphicsRootDescriptorTable(1, m_Texture.HandleGpu);
-		m_pCmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+		auto count = static_cast<UINT>(m_Meshes[0].Indices.size());
+		m_pCmdList->DrawIndexedInstanced(count, 1, 0, 0, 0);
 	}
 
 	// リソースバリアの設定

@@ -11,6 +11,7 @@
 #include<iostream>
 
 #include"../shader/SimpleShaderHeader.hlsli"
+#include"Mesh.h"
 
 // Linker
 #pragma comment(lib, "d3d12.lib")
@@ -107,6 +108,9 @@ private:
 	Texture m_Texture; // テクスチャ
 
 	float m_RotateAngle;
+
+	static std::vector<Mesh> m_Meshes;
+	static std::vector<Material> m_Materials;
 
 
 	// private methods
