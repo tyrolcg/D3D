@@ -12,6 +12,7 @@
 
 #include"../shader/SimpleShaderHeader.hlsli"
 #include"Mesh.h"
+#include"PointLight.h"
 
 // Linker
 #pragma comment(lib, "d3d12.lib")
@@ -42,7 +43,7 @@ struct Transform
 	DirectX::XMMATRIX World;
 	DirectX::XMMATRIX View;
 	DirectX::XMMATRIX Proj;
-	char padding[64]; // 256バイトアラインメント用のパディング
+	char padding[64]; // 256バイトアラインメント用のパディン���
 };
 
 struct Texture
@@ -111,6 +112,18 @@ private:
 
 	static std::vector<Mesh> m_Meshes;
 	static std::vector<Material> m_Materials;
+	
+	PointLight m_PointLight;
+	struct PointLightCB {
+		DirectX::XMFLOAT3 LightPosition;
+		float LightIntensity;
+		DirectX::XMFLOAT3 LightColor;
+		float LightAttenuation;
+	};
+	PointLightCB m_PointLightCB;
+
+	ComPtr<ID3D12Resource> m_pPointLightCB;
+	UINT8* m_pPointLightCBMapped = nullptr;
 
 
 	// private methods

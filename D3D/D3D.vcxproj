@@ -19,15 +19,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="shader\CookTrance.hlsl" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\FileUtil.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
+    <ClCompile Include="src\PointLight.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\App.h" />
     <ClInclude Include="include\FileUtil.h" />
     <ClInclude Include="include\Mesh.h" />
+    <ClInclude Include="include\PointLight.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\SampleTex.hlsl" />
@@ -146,14 +149,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D3D/include/;Library\assimp\include\assimp;$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)Library\assimp-5.2.5\include;%(AdditionalIncludeDirectories);$(SolutionDir)\packages\assimp_x64-windows\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>Library\assimp\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <DelayLoadDLLs>assimp-vc143-mtd.dll</DelayLoadDLLs>
-      <AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Library\assimp-5.2.5\lib\x64;%(AdditionalLibraryDirectories);$(SolutionDir)\packages\assimp_x64-windows\lib</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>packages\assimp_x64-windows\bin\assimp-vc143-mt.dll</DelayLoadDLLs>
+      <AdditionalDependencies>$(directxtex-LibName).lib;%(AdditionalDependencies);assimp-vc143-mt.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -164,16 +167,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D3D/include/;Library/assimp/include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)Library\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>Library/assimp/lib/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <DelayLoadDLLs>assimp-vc143-mtd.dll</DelayLoadDLLs>
-      <AdditionalDependencies>assimp-vc143-mtd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Library\assimp-5.2.5\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

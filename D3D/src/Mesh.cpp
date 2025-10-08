@@ -16,8 +16,7 @@ using namespace std;
 const D3D12_INPUT_ELEMENT_DESC MeshVertex::InputElements[] = {
 	{ "POSITION", 0, FMT_FLOAT3, 0, APPEND, IL_VERTEX, 0 },
 	{ "NORMAL",   0, FMT_FLOAT3, 0, APPEND, IL_VERTEX, 0 },
-	{ "TEXCOORD", 0, FMT_FLOAT2, 0, APPEND, IL_VERTEX, 0 },
-	{ "TANGENT",  0, FMT_FLOAT3, 0, APPEND, IL_VERTEX, 0 },
+	{ "TEXCOORD", 0, FMT_FLOAT2, 0, APPEND, IL_VERTEX, 0 }
 };
 const D3D12_INPUT_LAYOUT_DESC MeshVertex::InputLayout = {
 	MeshVertex::InputElements,
@@ -75,7 +74,6 @@ namespace
 		int flag = 0;
 		flag |= aiProcess_Triangulate; // 三角形化
 		flag |= aiProcess_JoinIdenticalVertices; // 同じ頂点を結合
-		flag |= aiProcess_ConvertToLeftHanded; // 左手系に変換
 		flag |= aiProcess_CalcTangentSpace; // 接線空間の計算
 		flag |= aiProcess_GenSmoothNormals; // スムーズシェーディング用の法線を生成
 		flag |= aiProcess_GenUVCoords; // UV座標を生成
@@ -231,4 +229,13 @@ bool LoadMesh(const std::string& filename, std::vector<Mesh>& meshes, std::vecto
     // std::string から std::wstring へ変換
     std::wstring wfilename(filename.begin(), filename.end());
     return LoadMesh(wfilename.c_str(), meshes, materials);
+}
+
+// wstring版
+bool LoadMesh(
+	const std::wstring& filename,
+	std::vector<Mesh>& meshes,
+	std::vector<Material>& materials)
+{
+	return LoadMesh(filename.c_str(), meshes, materials);
 }

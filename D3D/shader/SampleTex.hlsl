@@ -1,15 +1,16 @@
 struct VSInput
 {
 	float3 Position : POSITION;
-	float2 Uv : TEXCOORD;
-	float3 Normal : NORMAL;
-	float3 Tangent : TANGENT;
+	float3 Normal   : NORMAL;
+	float2 Uv       : TEXCOORD;
 };
 
 struct VSOutput
 {
 	float4 Position : SV_POSITION;
+	float3 Normal   : TEXCOORD2;
 	float2 Uv : TEXCOORD;
+	float3 WorldPos : TEXCOORD1;
 };
 
 cbuffer Transform : register(b0)
@@ -17,6 +18,14 @@ cbuffer Transform : register(b0)
 	float4x4 World : packoffset(c0);
 	float4x4 View : packoffset(c4);
 	float4x4 Proj : packoffset(c8);
+}
+
+cbuffer PointLightBuffer : register(b1)
+{
+	float3 LightPosition;
+	float  LightIntensity;
+	float3 LightColor;
+	float  LightAttenuation;
 }
 
 VSOutput main(VSInput input) 
@@ -28,7 +37,12 @@ VSOutput main(VSInput input)
 	float4 projPos = mul(Proj, viewPos);
 	output.Position = projPos;
 
+	output.Normal = mul((float3x3)World, input.Normal); // ワールド空間に変換
+	output.Normal = normalize(output.Normal);
+
 	output.Uv = input.Uv;
+
+	output.WorldPos = worldPos.xyz;
 
 	return output;
 }
@@ -38,5 +52,14 @@ SamplerState samp : register(s0);
 
 float4 ps_main(VSOutput input) : SV_TARGET
 {
-	return tex.Sample(samp, input.Uv);
+    float3 normal = input.Normal;
+	float3 fragPos = input.WorldPos;
+    float3 lightDir = LightPosition - fragPos;
+    float dist = length(lightDir);
+    lightDir = normalize(lightDir);
+    float attenuation = 1.0f / (1.0f + LightAttenuation * dist * dist);
+    float NdotL = max(dot(normal, lightDir), 0.0f);
+    float3 diffuse = LightColor * LightIntensity * NdotL * attenuation;
+    float4 texColor = tex.Sample(samp, input.Uv);
+    return float4(texColor.rgb * diffuse, 1.0f);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef _DEBUG
-#pragma comment(lib, "assimp-vc143-mtd.lib")
+#pragma comment(lib, "assimp-vc143-mt.lib")
 #else
 #pragma comment(lib, "assimp-vc143-mt.lib")
 #endif

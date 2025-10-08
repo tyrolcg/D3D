@@ -5,6 +5,7 @@
 #include "VertexTypes.h"
 #include <cassert>
 #include "Mesh.h" 
+#include "PointLight.h"
 
 namespace /* anonymous */
 {
@@ -13,6 +14,9 @@ namespace /* anonymous */
 
 std::vector<Mesh> App::m_Meshes;
 std::vector<Material> App::m_Materials;
+
+std::wstring _vsPath = L"D3D/shader/SampleVS.cso";
+std::wstring _psPath = L"D3D/shader/SamplePS.cso";
 
 template<typename T>
 void SafeRelease(T **ppT)
@@ -39,6 +43,7 @@ App::App(uint32_t width, uint32_t height)
 	, m_HandleRTV{}
 	, m_IBV{}
 	, m_VBV{}
+	, m_PointLight(DirectX::XMFLOAT3(4.0f, 4.0f, -4.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), 10.0f, 0.2f)
 {
 	// do nothing
 }
@@ -211,7 +216,7 @@ void App::TermWnd()
 /// <param name="hWnd">ウィンドウハンドル</param>
 /// <param name="msg">メッセージコード</param>
 /// <param name="wp">追加パラメータ</param>
-/// <param name="lp">追加パラメータ</param>
+/// <param name="lp">追��パラメータ</param>
 /// <returns></returns>
 LRESULT CALLBACK App::WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -312,7 +317,7 @@ bool App::InitD3D()
 			&desc, // スワップチェインの設定
 			nullptr, // フルスクリーンモードの設定。nullptrを指定すると、ウィンドウモードになる。
 			nullptr, // 出力制御用のインターフェース。通常はnullptrでよい。
-			&pSwapChain // 生成されたスワップチェインインターフェースへのポインタ
+			&pSwapChain // 生成されたスワップ���ェインインターフェースへのポインタ
 		);
 		if (FAILED(hr))
 		{
@@ -331,7 +336,7 @@ bool App::InitD3D()
 			return false;
 		}
 
-		// 現在のバックバッファのインデックスを取得
+		// 現在のバックバッファのインデックス���取得
 		m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
 
 		// 不要になったので解放する
@@ -449,7 +454,7 @@ bool App::InitD3D()
 	// 今回はバッファをリソースとする
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.NumDescriptors = FrameCount; // ヒープ内のディスクリプタの数。今回はバッファの分だけ作成する。
-	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // _SHADER_VISIBLEの場合はシェーダから参照できるようになる。
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // _SHADER_VISIBLEの場合はシェーダから参照できるようになる���
 	desc.NodeMask = 0; // GPUノードの識別
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // ディスクリプタヒープの種類を指定。RTVはレンダーターゲットビューのこと。
 	
@@ -476,7 +481,7 @@ bool App::InitD3D()
 
 		D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
 		viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; // どのような次元でリソースにアクセスするか？
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; // どのような次元でリソースにアクセ���するか？
 		viewDesc.Texture2D.MipSlice = 0; // ミップマップレベル
 		viewDesc.Texture2D.PlaneSlice = 0; // 使用テクスチャの平面のインデックス
 
@@ -535,8 +540,18 @@ bool App::InitD3D()
 bool App::OnInit()
 {
 	// --- メッシュロード処理を追加 ---
-	if (!LoadMesh("D3D/model/bun_zipper_res2.ply", m_Meshes, m_Materials)) {
-		std::cerr << "Failed to load mesh: D3D/model/bun_zipper_res2.ply" << std::endl;
+	std::wstring modelPath;
+	if(SearchFilePath(L"D3D/model/bun_zipper_res2.ply", modelPath))
+	{
+		std::wcout << L"Model file found: " << modelPath << std::endl;
+	} else
+	{
+		std::cerr << "Model file not found: D3D/model/bun_zipper_res2.ply" << std::endl;
+		return false;
+	}
+	if (!LoadMesh(modelPath.c_str(), m_Meshes, m_Materials))
+	{
+		std::cerr << "Failed to load mesh" << std::endl;
 		return false;
 	}
 	// --- ここまで追加 ---
@@ -544,7 +559,7 @@ bool App::OnInit()
 	{
 
 		// 頂点データ
-		auto size = sizeof(DirectX::VertexPositionTexture) * m_Meshes[0].Vertices.size();
+		auto size = sizeof(MeshVertex) * m_Meshes[0].Vertices.size();
 		auto vertices = m_Meshes[0].Vertices.data();
 
 		D3D12_HEAP_PROPERTIES prop = {};
@@ -559,7 +574,7 @@ bool App::OnInit()
 		desc.Alignment = 0;
 		desc.Format = DXGI_FORMAT_UNKNOWN;
 		desc.MipLevels = 1;
-		desc.Width = sizeof(vertices);
+		desc.Width = size;
 		desc.Height = 1;
 		desc.DepthOrArraySize = 1;
 		desc.SampleDesc.Count = 1;
@@ -593,22 +608,22 @@ bool App::OnInit()
 		}
 
 		// 頂点データをバッファにコピー
-		memcpy(ptr, vertices, sizeof(vertices));
+		memcpy(ptr, vertices, size);
 		
 		m_pVB->Unmap(0, nullptr);
 
 		// 頂点バッファビューの設定
-		// バッファは頂点を保持するのか、定数バッファなのか、自身では判断できない。ビューが必要。
+		// バッファは頂点を保持するのか、定数バッファなのか、自身では判断できない。�������ューが必要。
 		m_VBV = {};
 		m_VBV.BufferLocation = m_pVB->GetGPUVirtualAddress();
-		m_VBV.SizeInBytes = static_cast<UINT>(sizeof(vertices));
-		m_VBV.StrideInBytes = static_cast<UINT>(sizeof(DirectX::VertexPositionTexture));
+		m_VBV.SizeInBytes = static_cast<UINT>(size);
+		m_VBV.StrideInBytes = static_cast<UINT>(sizeof(MeshVertex));
 	}
 
-	// インデックスバッファビュー
+	// インデックスバッファビ���ー
 	{
 		auto size = sizeof(uint32_t) * m_Meshes[0].Indices.size();
-		auto indices = m_Meshes[0].Vertices.data();
+		auto indices = m_Meshes[0].Indices.data();
 
 		D3D12_HEAP_PROPERTIES prop = {};
 		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -620,7 +635,7 @@ bool App::OnInit()
 		D3D12_RESOURCE_DESC indexDesc = {};
 		indexDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		indexDesc.Alignment = 0;
-		indexDesc.Width = sizeof(indices);
+		indexDesc.Width = size;
 		indexDesc.Height = 1;
 		indexDesc.DepthOrArraySize = 1;
 		indexDesc.MipLevels = 1;
@@ -653,13 +668,13 @@ bool App::OnInit()
 		}
 
 		// インデックスデータをバッファにコピー
-		memcpy(ptr, indices, sizeof(indices));
+		memcpy(ptr, indices, size);
 		m_pIB->Unmap(0, nullptr);
 		// インデックスバッファビューの設定
 		m_IBV = {};
 		m_IBV.BufferLocation = m_pIB->GetGPUVirtualAddress();
 		m_IBV.Format = DXGI_FORMAT_R32_UINT; // インデックスのフォーマット。uint32_tなのでR32_UINT
-		m_IBV.SizeInBytes = sizeof(indices);
+		m_IBV.SizeInBytes = size;
 	}
 	// 定数バッファ用のヒープを作成
 	{
@@ -744,8 +759,8 @@ bool App::OnInit()
 			{
 				return false;
 			}
-			auto eyePos = DirectX::XMVectorSet(0, 0, 5, 0);
-			auto targetPos = DirectX::XMVectorSet(0, 0, 0, 0);
+			auto eyePos = DirectX::XMVectorSet(0, 0, 1, 0);
+			auto targetPos = DirectX::XMVectorSet(0, 0.1, 0.1, 0);
 			auto upward = DirectX::XMVectorSet(0, 1, 0, 0);
 
 			auto fovY = DirectX::XMConvertToRadians(45.0f);
@@ -754,7 +769,7 @@ bool App::OnInit()
 			// 変換行列設定
 			m_CBV[i].pBuffer->World = DirectX::XMMatrixIdentity();
 			m_CBV[i].pBuffer->View = DirectX::XMMatrixLookAtRH(eyePos, targetPos, upward);
-			m_CBV[i].pBuffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fovY, aspect, 1.0f, 1000.0f);
+			m_CBV[i].pBuffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fovY, aspect, 1.0f, 10000.0f);
 
 
 		}
@@ -768,7 +783,7 @@ bool App::OnInit()
 		flag |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		// ルートパラメータ
-		D3D12_ROOT_PARAMETER param[2] = {};
+		D3D12_ROOT_PARAMETER param[3] = {};
 		param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
 		param[0].Descriptor.ShaderRegister = 0; // b0レジスタにバインド
 		param[0].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
@@ -787,6 +802,12 @@ bool App::OnInit()
 		param[1].DescriptorTable.pDescriptorRanges = &descRange; // 範囲へのポインタ
 		param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
 
+		// ポイントライト用
+		param[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
+		param[2].Descriptor.ShaderRegister = 1; // b1レジスタにバインド
+		param[2].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
+		param[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
+		
 		// スタティックサンプラー
 		D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
 		samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -801,12 +822,12 @@ bool App::OnInit()
 		samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
 		samplerDesc.ShaderRegister = 0; // s0レジスタにバインド
 		samplerDesc.RegisterSpace = 0; // レジスタスペース0にバインド
-		samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
+		samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみア���セス可能
 
 		// ルートシグネチャの設定
 		D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
 		rootDesc.Flags = flag;
-		rootDesc.NumParameters = 2; // ルートパラメータは2つ
+		rootDesc.NumParameters = 3;
 		rootDesc.pParameters = param;
 		rootDesc.NumStaticSamplers = 1; // スタティックサンプラーは1つ
 		rootDesc.pStaticSamplers = &samplerDesc;
@@ -913,95 +934,61 @@ bool App::OnInit()
 
 	// パイプラインステートの作成
 	{
-		// 入力レイアウト
-		D3D12_INPUT_ELEMENT_DESC elementDesc[2];
-		elementDesc[0].SemanticName = "POSITION"; // 頂点シェーダで使う変数名
-		elementDesc[0].SemanticIndex = 0; // 同じ名前の変数が複数ある場合のインデックス
-		elementDesc[0].Format = DXGI_FORMAT_R32G32B32_FLOAT; // データフォーマット
-		elementDesc[0].InputSlot = 0; // 頂点バッファスロット
-		elementDesc[0].AlignedByteOffset = 0; // 頂点データのオフセット
-		elementDesc[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA; // 頂点データとして扱う
-		elementDesc[0].InstanceDataStepRate = 0; // インスタンスデータとして扱わない
-
-		elementDesc[1].SemanticName = "TEXCOORD";
-		elementDesc[1].SemanticIndex = 0;
-		elementDesc[1].Format = DXGI_FORMAT_R32G32_FLOAT;
-		elementDesc[1].InputSlot = 0;
-		elementDesc[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // オフセットを自動計算
-		elementDesc[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-		elementDesc[1].InstanceDataStepRate = 0;
+		// ブレンドステート
+		D3D12_BLEND_DESC blendState = {};
+		blendState.AlphaToCoverageEnable = FALSE;
+		blendState.IndependentBlendEnable = FALSE;
+		blendState.RenderTarget[0].BlendEnable = TRUE;
+		blendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		blendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+		blendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+		blendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 		// ラスタライザステート
 		D3D12_RASTERIZER_DESC rasterizerDesc = {};
-		rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // ポリゴンの塗りつぶし方法
-		rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE; // 背面カリングを有効にする
-		rasterizerDesc.FrontCounterClockwise = false; // 左手座標系で面の正負判定をする
-		rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS; // 深度バイアス値
-		rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP; // 深度バイアスの最大値
-		rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS; // 傾斜に基づく深度バイアスの値
-		rasterizerDesc.DepthClipEnable = false; // 深度クリッピングを無効にする
-		rasterizerDesc.MultisampleEnable = false; // マルチサンプリングを無効にする
-		rasterizerDesc.AntialiasedLineEnable = false; // アンチエイリアスを無効にする
-		rasterizerDesc.ForcedSampleCount = 0; // 強制的にサンプル数を設定しない
-		rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF; // 保守的ラスタライザを無効にする
-		// REF: https://learn.microsoft.com/en-us/windows/win32/direct3d12/conservative-rasterization
-
-		// 深度ステンシルステートの設定
-		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
-		depthStencilDesc.DepthEnable = true; // 深度テストを有効にする
-		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // 深度値の書き込みを許可
-		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // 深度テストの条件
-		depthStencilDesc.StencilEnable = false; // ステンシルテストを無効にする
-
+		rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // ポリゴンを塗りつぶす
+		rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 裏面をカリング
+		rasterizerDesc.FrontCounterClockwise = FALSE; // 頂点の時計回り・反時計回りの判定
+		rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+		rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+		rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+		rasterizerDesc.DepthClipEnable = TRUE; // 深度クリッピングを有効にする
+		rasterizerDesc.MultisampleEnable = FALSE; // マルチサンプリングしない
+		rasterizerDesc.AntialiasedLineEnable = FALSE; // アンチエイリアスしない
+		rasterizerDesc.ForcedSampleCount = 0; // 強制的にサンプル数を変更しない
+		rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF; // 保守的ラスタライザを使用しない
 		
-		// レンダーターゲットのブレンドステート
-		D3D12_RENDER_TARGET_BLEND_DESC blendDesc = {};
-		blendDesc.BlendEnable = false; // ブレンド無効
-		blendDesc.LogicOpEnable = false; // 論理演算無効
-		blendDesc.SrcBlend = D3D12_BLEND_ONE; // PIXEL_SHADERから出力された色にそのまま加算
-		blendDesc.DestBlend = D3D12_BLEND_ZERO; // レンダーターゲットのRGB値に0を乗算
-		blendDesc.BlendOp = D3D12_BLEND_OP_ADD; // SrcBlendとDestBlendを加算
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE; // PIXEL_SHADERから出力されたアルファ値にそのまま加算
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO; // レンダーターゲットのアルファ値に0を乗算
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD; // SrcBlendAlphaとDestBlendAlphaを加算
-		blendDesc.LogicOp = D3D12_LOGIC_OP_NOOP; // レンダーターゲットに対する論理演算を行わない
-		blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL; // RGBAすべてのチャンネルへの書き込みを許可
-
-		// ブレンドステート
-		D3D12_BLEND_DESC blendState = {};
-		blendState.AlphaToCoverageEnable = false; // アルファ値に基づくマルチサンプリングを行わない
-		blendState.IndependentBlendEnable = false; // 複数のレンダーターゲットに対して独立したブレンドステートを設定しない
-		for (auto i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
-		{
-			blendState.RenderTarget[i] = blendDesc;
-		}
-
+		// 深度ステンシルステート
+		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+		depthStencilDesc.DepthEnable = TRUE; // 深度テストを有効にする
+		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // 深度値の書き込みを許可
+		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS; // 小さい値を採用
+		depthStencilDesc.StencilEnable = FALSE; // ステンシルテストを使用しない
+		depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+		depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+		depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		depthStencilDesc.BackFace = depthStencilDesc.FrontFace;
+		
 		ComPtr<ID3DBlob> pVSBlob;
 		ComPtr<ID3DBlob> pPSBlob;
-
-		//// 頂点シェーダをメモリに読み取る
-		//auto hr = D3DReadFileToBlob(L"SimpleVS.cso", pVSBlob.GetAddressOf());
-		//if (FAILED(hr))
-		//{
-		//	return false;
-		//}
-		//// ピクセルシェーダをメモリに読み取る
-		//hr = D3DReadFileToBlob(L"SimplePS.cso", pPSBlob.GetAddressOf());
-		//if (FAILED(hr))
-		//{
-		//	return false;
-		//}
-
-		// HLSLソースコードからシェーダをコンパイル
+		
+		// HLSLソースコードからシェーダをコンパイルしておく
 		std::wstring shaderPath;
 		std::wstring vsPath;
 		std::wstring psPath;
-		if (!SearchFilePath(L"D3D/shader/SampleVS.cso", vsPath))
+		if (!SearchFilePath(_vsPath.c_str(), vsPath))
 		{
 			std::cerr << "Failed to find vertex shader file (SampleVS.cso)." << std::endl;
 			return false;
 		}
-		if (!SearchFilePath(L"D3D/shader/SamplePS.cso", psPath))
+		if (!SearchFilePath(_psPath.c_str(), psPath))
 		{
 			std::cerr << "Failed to find pixel shader file (SamplePS.cso)." << std::endl;
 			return false;
@@ -1020,9 +1007,16 @@ bool App::OnInit()
 			return false;
 		}
 
+		// InputLayoutを再定義
+		D3D12_INPUT_ELEMENT_DESC inputElements[] = {
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+			};
+		D3D12_INPUT_LAYOUT_DESC inputLayout = {inputElements, _countof(inputElements)};
 		// グラフィックスパイプラインステートの設定
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-		psoDesc.InputLayout = MeshVertex::InputLayout; // 頂点入力レイアウト
+		psoDesc.InputLayout = inputLayout; // 頂点入力レイアウト
 		psoDesc.pRootSignature = m_pRootSignature.Get(); // ルートシグネチャ
 		psoDesc.VS = { pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize() }; // 頂点シェーダ
 		psoDesc.PS = { pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize() }; // ピクセルシェーダ
@@ -1033,13 +1027,13 @@ bool App::OnInit()
 		psoDesc.SampleMask = UINT_MAX; // 全サンプル有効
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形プリミティブ
 		psoDesc.NumRenderTargets = 1; // レンダーターゲットは1つ
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせる)
-		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT; // 深度ステンシルビューのフォーマット
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせ��)
+		psoDesc.DSVFormat = depthStencilDesc.DepthEnable ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_UNKNOWN; // 深度ステンシルビューのフォーマット
 		psoDesc.SampleDesc.Count = 1; // マルチサンプリングしない
 		psoDesc.SampleDesc.Quality = 0; // 標準品質レベル
 		psoDesc.NodeMask = 0; // 単一GPUノード
 
-		// パイプラインステートを生成
+		// パイプラインステートを作成
 		hr = m_pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pPSO.GetAddressOf()));
 		if (FAILED(hr))
 		{
@@ -1047,6 +1041,53 @@ bool App::OnInit()
 			return false;
 		}
 
+	}
+	// PointLight用定数バッファの生成・初期化
+	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC cbDesc = {};
+		cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		cbDesc.Alignment = 0;
+		cbDesc.Width = (sizeof(PointLightCB) + 255) & ~255; // 256バイトアラインメント
+		cbDesc.Height = 1;
+		cbDesc.DepthOrArraySize = 1;
+		cbDesc.MipLevels = 1;
+		cbDesc.Format = DXGI_FORMAT_UNKNOWN;
+		cbDesc.SampleDesc.Count = 1;
+		cbDesc.SampleDesc.Quality = 0;
+		cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		cbDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		auto hr = m_pDevice->CreateCommittedResource(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&cbDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pPointLightCB.GetAddressOf())
+		);
+		if (FAILED(hr)) {
+			std::cerr << "Failed to create PointLight constant buffer." << std::endl;
+			return false;
+		}
+		// マッピング
+		hr = m_pPointLightCB->Map(0, nullptr, reinterpret_cast<void**>(&m_pPointLightCBMapped));
+		if (FAILED(hr)) {
+			std::cerr << "Failed to map PointLight constant buffer." << std::endl;
+			return false;
+		}
+		// データ設定
+		m_PointLightCB.LightPosition = m_PointLight.position;
+		m_PointLightCB.LightIntensity = m_PointLight.intensity;
+		m_PointLightCB.LightColor = m_PointLight.color;
+		m_PointLightCB.LightAttenuation = m_PointLight.attenuation;
+		memcpy(m_pPointLightCBMapped, &m_PointLightCB, sizeof(PointLightCB));
 	}
 	return true;
 }
@@ -1062,9 +1103,7 @@ void App::Render()
 		m_RotateAngle += 0.01f;
 
 		// 2つの正方形を回転・拡大縮小させて配置
-		m_CBV[m_FrameIndex * 2].pBuffer->World = DirectX::XMMatrixRotationZ(m_RotateAngle + DirectX::XMConvertToRadians(45));
-
-		m_CBV[m_FrameIndex * 2 + 1].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle) * DirectX::XMMatrixScaling(2, 0.5f, 1);
+		m_CBV[m_FrameIndex * 2].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle + DirectX::XMConvertToRadians(45));
 	}
 
 	// コマンドの記録を開始するための初期化処理
@@ -1132,7 +1171,10 @@ void App::Render()
 
 
 		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2].Desc.BufferLocation);
+		// 定数バッファをb1にセット
 		m_pCmdList->SetGraphicsRootDescriptorTable(1, m_Texture.HandleGpu);
+		// ポイントライト用定数バッファをb2にセット
+		m_pCmdList->SetGraphicsRootConstantBufferView(2, m_pPointLightCB->GetGPUVirtualAddress());
 		auto count = static_cast<UINT>(m_Meshes[0].Indices.size());
 		m_pCmdList->DrawIndexedInstanced(count, 1, 0, 0, 0);
 	}
@@ -1165,7 +1207,7 @@ void App::Render()
 /// <summary>
 /// 画面表示と次フレームの準備を行う
 /// </summary>
-/// <param name="interval">垂直同期回数</param>
+/// <param name="interval">垂���同期回数</param>
 void App::Present(uint32_t interval)
 {
 	// 表示処理
@@ -1173,7 +1215,7 @@ void App::Present(uint32_t interval)
 
 	// 現在のフェンスカウンターを取得
 	const auto currentFenceValue = m_FenceCounter[m_FrameIndex];
-	// ここまでにCommandQueueに設定されたコマンドリストを実行すると
+	// ここまでにCommandQueueに設定されたコマンドリス���を実行すると
 	// フェンスはcurrentFenceValueの値になる
 	m_pQueue->Signal(m_pFence.Get(), currentFenceValue);
 
@@ -1185,7 +1227,7 @@ void App::Present(uint32_t interval)
 	{
 		// フェンスの値が特定の値になったとき、イベントをシグナル状態にする
 		m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
-		// フェンスイベントがシグナル状態になるまで or タイムアウト間隔が経過するまで待機する
+		// フェンスイベントがシグナル状態になるので or タイムアウト間隔が経過するまで待機する
 		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
 	}
 
