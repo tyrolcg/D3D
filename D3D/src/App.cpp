@@ -15,8 +15,8 @@ namespace /* anonymous */
 std::vector<Mesh> App::m_Meshes;
 std::vector<Material> App::m_Materials;
 
-std::wstring _vsPath = L"D3D/shader/SampleVS.cso";
-std::wstring _psPath = L"D3D/shader/SamplePS.cso";
+std::wstring _vsPath = L"D3D/shader/CookTranceVS.cso";
+std::wstring _psPath = L"D3D/shader/CookTrancePS.cso";
 
 template<typename T>
 void SafeRelease(T **ppT)
@@ -43,7 +43,7 @@ App::App(uint32_t width, uint32_t height)
 	, m_HandleRTV{}
 	, m_IBV{}
 	, m_VBV{}
-	, m_PointLight(DirectX::XMFLOAT3(4.0f, 4.0f, -4.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), 10.0f, 0.2f)
+	, m_PointLight(DirectX::XMFLOAT3(4.0f, 4.0f, 4.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), 10.0f, 0.2f)
 {
 	// do nothing
 }
@@ -293,7 +293,7 @@ bool App::InitD3D()
 			return false;
 		}
 
-		// スワップチェインの設定
+		// スワップチェインの設���
 		// https://learn.microsoft.com/ja-jp/windows/win32/api/dxgi/ns-dxgi-dxgi_swap_chain_desc
 		DXGI_SWAP_CHAIN_DESC1 desc = {};
 		desc.Width = m_Width;
@@ -312,7 +312,7 @@ bool App::InitD3D()
 		// スワップチェインの作成
 		IDXGISwapChain1* pSwapChain = nullptr;
 		hr = pFactory->CreateSwapChainForHwnd(
-			m_pQueue.Get(), // スワップチェインを使用するコマンドキュー
+			m_pQueue.Get(), // スワップチェインを使用する���マンドキュー
 			m_hWnd, // スワップチェインを関連付けるウィンドウのハンドル
 			&desc, // スワップチェインの設定
 			nullptr, // フルスクリーンモードの設定。nullptrを指定すると、ウィンドウモードになる。
@@ -367,7 +367,7 @@ bool App::InitD3D()
 	{
 		hr = m_pDevice->CreateCommandList(
 			0, // 複数のGPUノードがある場合に識別するためのビットマスク。GPUが1つの場合は0を割り当てる
-			D3D12_COMMAND_LIST_TYPE_DIRECT, // コマンドリストのタイプ。Directはコマンドキューに直接登録可能なリスト
+			D3D12_COMMAND_LIST_TYPE_DIRECT, // コマンドリストのタイプ。Directはコマンドキューに直接登録可能���リスト
 			m_pCmdAllocator[m_FrameIndex].Get(), // バックバッファのアロケータを使う
 			nullptr, // パイプラインステート。後で明示的に設定するためnullptrを渡しておく
 			IID_PPV_ARGS(&m_pCmdList) // GUID
@@ -400,7 +400,7 @@ bool App::InitD3D()
 		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-		// デプスバッファをクリアするための設定
+		// デ��スバッファをクリアす���ための設定
 		D3D12_CLEAR_VALUE depthClearValue = {};
 		depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;
 		depthClearValue.DepthStencil.Depth = 1.0f; // 1.0fで初期化
@@ -456,7 +456,7 @@ bool App::InitD3D()
 	desc.NumDescriptors = FrameCount; // ヒープ内のディスクリプタの数。今回はバッファの分だけ作成する。
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // _SHADER_VISIBLEの場合はシェーダから参照できるようになる���
 	desc.NodeMask = 0; // GPUノードの識別
-	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // ディスクリプタヒープの種類を指定。RTVはレンダーターゲットビューのこと。
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV; // ディスクリプタヒープの種類を指定。RTVはレンダーターゲッ���ビューのこと。
 	
 	hr = m_pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_pHeapRTV));
 	if (FAILED(hr))
@@ -539,7 +539,7 @@ bool App::InitD3D()
 
 bool App::OnInit()
 {
-	// --- メッシュロード処理を追加 ---
+	// --- メッシュロー���処理を追加 ---
 	std::wstring modelPath;
 	if(SearchFilePath(L"D3D/model/bun_zipper_res2.ply", modelPath))
 	{
@@ -613,14 +613,14 @@ bool App::OnInit()
 		m_pVB->Unmap(0, nullptr);
 
 		// 頂点バッファビューの設定
-		// バッファは頂点を保持するのか、定数バッファなのか、自身では判断できない。�������ューが必要。
+		// バッファは頂点を保持するのか、定数バッファなのか、自身では判断できない。バッファビューが必要。
 		m_VBV = {};
 		m_VBV.BufferLocation = m_pVB->GetGPUVirtualAddress();
 		m_VBV.SizeInBytes = static_cast<UINT>(size);
 		m_VBV.StrideInBytes = static_cast<UINT>(sizeof(MeshVertex));
 	}
 
-	// インデックスバッファビ���ー
+	// インデックスバッファビュー
 	{
 		auto size = sizeof(uint32_t) * m_Meshes[0].Indices.size();
 		auto indices = m_Meshes[0].Indices.data();
@@ -667,7 +667,7 @@ bool App::OnInit()
 			return false;
 		}
 
-		// インデックスデータをバッファにコピー
+		// インデックスをバッファにコピー
 		memcpy(ptr, indices, size);
 		m_pIB->Unmap(0, nullptr);
 		// インデックスバッファビューの設定
@@ -759,8 +759,8 @@ bool App::OnInit()
 			{
 				return false;
 			}
-			auto eyePos = DirectX::XMVectorSet(0, 0, 1, 0);
-			auto targetPos = DirectX::XMVectorSet(0, 0.1, 0.1, 0);
+			auto eyePos = DirectX::XMVectorSet(0, 0.1, 0.4, 0);
+			auto targetPos = DirectX::XMVectorSet(0, 0.1, 0, 0);
 			auto upward = DirectX::XMVectorSet(0, 1, 0, 0);
 
 			auto fovY = DirectX::XMConvertToRadians(45.0f);
@@ -769,7 +769,7 @@ bool App::OnInit()
 			// 変換行列設定
 			m_CBV[i].pBuffer->World = DirectX::XMMatrixIdentity();
 			m_CBV[i].pBuffer->View = DirectX::XMMatrixLookAtRH(eyePos, targetPos, upward);
-			m_CBV[i].pBuffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fovY, aspect, 1.0f, 10000.0f);
+			m_CBV[i].pBuffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fovY, aspect, 0.1f, 10000.0f);
 
 
 		}
@@ -783,7 +783,7 @@ bool App::OnInit()
 		flag |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		// ルートパラメータ
-		D3D12_ROOT_PARAMETER param[3] = {};
+		D3D12_ROOT_PARAMETER param[5] = {};
 		param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
 		param[0].Descriptor.ShaderRegister = 0; // b0レジスタにバインド
 		param[0].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
@@ -800,13 +800,25 @@ bool App::OnInit()
 		param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; // ディスクリプタテーブル
 		param[1].DescriptorTable.NumDescriptorRanges = 1; // 範囲は1つだけ
 		param[1].DescriptorTable.pDescriptorRanges = &descRange; // 範囲へのポインタ
-		param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
+		param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみア���セス可能
 
 		// ポイントライト用
 		param[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
 		param[2].Descriptor.ShaderRegister = 1; // b1レジスタにバインド
 		param[2].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
 		param[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
+		
+		// PBRマテリアルパラメータ用
+		param[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
+		param[3].Descriptor.ShaderRegister = 2; // b2レジスタにバインド
+		param[3].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
+		param[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
+
+		// カメラ情報用
+		param[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // 定数バッファビュー
+		param[4].Descriptor.ShaderRegister = 3; // b3レジスタにバインド
+		param[4].Descriptor.RegisterSpace = 0; // レジスタスペース0にバインド
+		param[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // 頂点シェーダとピクセルシェーダからアクセス可能
 		
 		// スタティックサンプラー
 		D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
@@ -822,12 +834,12 @@ bool App::OnInit()
 		samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
 		samplerDesc.ShaderRegister = 0; // s0レジスタにバインド
 		samplerDesc.RegisterSpace = 0; // レジスタスペース0にバインド
-		samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみア���セス可能
+		samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダからのみアクセス可能
 
 		// ルートシグネチャの設定
 		D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
 		rootDesc.Flags = flag;
-		rootDesc.NumParameters = 3;
+		rootDesc.NumParameters = 5;
 		rootDesc.pParameters = param;
 		rootDesc.NumStaticSamplers = 1; // スタティックサンプラーは1つ
 		rootDesc.pStaticSamplers = &samplerDesc;
@@ -932,15 +944,15 @@ bool App::OnInit()
 
 	}
 
-	// パイプラインステートの作成
+	// パイプラインステート作成
 	{
 		// ブレンドステート
 		D3D12_BLEND_DESC blendState = {};
 		blendState.AlphaToCoverageEnable = FALSE;
 		blendState.IndependentBlendEnable = FALSE;
-		blendState.RenderTarget[0].BlendEnable = TRUE;
-		blendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-		blendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendState.RenderTarget[0].BlendEnable = FALSE;
+		blendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		blendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
 		blendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 		blendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 		blendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
@@ -952,7 +964,7 @@ bool App::OnInit()
 		D3D12_RASTERIZER_DESC rasterizerDesc = {};
 		rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // ポリゴンを塗りつぶす
 		rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK; // 裏面をカリング
-		rasterizerDesc.FrontCounterClockwise = FALSE; // 頂点の時計回り・反時計回りの判定
+		rasterizerDesc.FrontCounterClockwise = TRUE; // 頂点の時計回り・反時計回りの判定
 		rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
 		rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
 		rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
@@ -966,7 +978,7 @@ bool App::OnInit()
 		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
 		depthStencilDesc.DepthEnable = TRUE; // 深度テストを有効にする
 		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // 深度値の書き込みを許可
-		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS; // 小さい値を採用
+		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // 小さい値を採用
 		depthStencilDesc.StencilEnable = FALSE; // ステンシルテストを使用しない
 		depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
 		depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
@@ -1089,6 +1101,105 @@ bool App::OnInit()
 		m_PointLightCB.LightAttenuation = m_PointLight.attenuation;
 		memcpy(m_pPointLightCBMapped, &m_PointLightCB, sizeof(PointLightCB));
 	}
+
+	// PBRマテリアル用定数バッファの生成・初期化
+	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC cbDesc = {};
+		cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		cbDesc.Alignment = 0;
+		cbDesc.Width = (sizeof(PBRMaterialCB) + 255) & ~255; // 256バイトアラインメント
+		cbDesc.Height = 1;
+		cbDesc.DepthOrArraySize = 1;
+		cbDesc.MipLevels = 1;
+		cbDesc.Format = DXGI_FORMAT_UNKNOWN;
+		cbDesc.SampleDesc.Count = 1;
+		cbDesc.SampleDesc.Quality = 0;
+		cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		cbDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		auto hr = m_pDevice->CreateCommittedResource(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&cbDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pPBRMaterialCB.GetAddressOf())
+		);
+		if (FAILED(hr)) {
+			std::cerr << "Failed to create PBRMaterial constant buffer." << std::endl;
+			return false;
+		}
+		// マッピング
+		hr = m_pPBRMaterialCB->Map(0, nullptr, reinterpret_cast<void**>(&m_pPBRMaterialCBMapped));
+		if (FAILED(hr)) {
+			std::cerr << "Failed to map PBRMaterial constant buffer." << std::endl;
+			return false;
+		}
+		// デフォルト値の設定
+		m_PBRMaterialCB.Metallic = 0.5f;
+		m_PBRMaterialCB.Roughness = 0.3f;
+		m_PBRMaterialCB.BaseColor = DirectX::XMFLOAT3(0.8f, 0.8f, 0.8f);
+		m_PBRMaterialCB.AmbientFactor = 0.5f;
+
+		// データをバッファにコピー
+		memcpy(m_pPBRMaterialCBMapped, &m_PBRMaterialCB, sizeof(PBRMaterialCB));
+	}
+
+	// カメラ情報の定数バッファ
+	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		prop.CreationNodeMask = 1;
+		prop.VisibleNodeMask = 1;
+
+		D3D12_RESOURCE_DESC cbDesc = {};
+		cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		cbDesc.Alignment = 0;
+		cbDesc.Width = (sizeof(PBRMaterialCB) + 255) & ~255; // 256バイトアラインメント
+		cbDesc.Height = 1;
+		cbDesc.DepthOrArraySize = 1;
+		cbDesc.MipLevels = 1;
+		cbDesc.Format = DXGI_FORMAT_UNKNOWN;
+		cbDesc.SampleDesc.Count = 1;
+		cbDesc.SampleDesc.Quality = 0;
+		cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		cbDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		auto hr = m_pDevice->CreateCommittedResource(
+			&prop,
+			D3D12_HEAP_FLAG_NONE,
+			&cbDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pCameraCB.GetAddressOf())
+		);
+		if (FAILED(hr)) {
+			std::cerr << "Failed to create CameraInfo constant buffer." << std::endl;
+			return false;
+		}
+		// マッピング
+		hr = m_pCameraCB->Map(0, nullptr, reinterpret_cast<void**>(&m_pCameraCBMapped));
+		if (FAILED(hr)) {
+			std::cerr << "Failed to map CameraInfo constant buffer." << std::endl;
+			return false;
+		}
+
+		m_CameraCB.CamPosition = DirectX::XMFLOAT3(0, 0.1, 0.4f);
+		m_CameraCB.CamTarget = DirectX::XMFLOAT3(0, 0.1, 0);
+		m_CameraCB.CamUp = DirectX::XMFLOAT3(0, 1, 0);
+
+		// データをバッファにコピー
+		memcpy(m_pCameraCBMapped, &m_CameraCB, sizeof(CameraCB));
+	}
 	return true;
 }
 
@@ -1169,12 +1280,17 @@ void App::Render()
 		m_pCmdList->RSSetViewports(1, &m_Viewport);
 		m_pCmdList->RSSetScissorRects(1, &m_Scissor);
 
-
+		// Transform定数バッファをb0にセット
 		m_pCmdList->SetGraphicsRootConstantBufferView(0, m_CBV[m_FrameIndex * 2].Desc.BufferLocation);
-		// 定数バッファをb1にセット
+		// テクスチャをt0にセット
 		m_pCmdList->SetGraphicsRootDescriptorTable(1, m_Texture.HandleGpu);
-		// ポイントライト用定数バッファをb2にセット
+		// ポイントライト用定数バッファをb1にセット
 		m_pCmdList->SetGraphicsRootConstantBufferView(2, m_pPointLightCB->GetGPUVirtualAddress());
+		// PBRマテリアルパラメータ用定数バッファをb2にセット
+		m_pCmdList->SetGraphicsRootConstantBufferView(3, m_pPBRMaterialCB->GetGPUVirtualAddress());
+		// カメラ情報用定数バッファをb3にセット
+		m_pCmdList->SetGraphicsRootConstantBufferView(4, m_pCameraCB->GetGPUVirtualAddress());
+		
 		auto count = static_cast<UINT>(m_Meshes[0].Indices.size());
 		m_pCmdList->DrawIndexedInstanced(count, 1, 0, 0, 0);
 	}
@@ -1207,7 +1323,7 @@ void App::Render()
 /// <summary>
 /// 画面表示と次フレームの準備を行う
 /// </summary>
-/// <param name="interval">垂���同期回数</param>
+/// <param name="interval">垂直同期回数</param>
 void App::Present(uint32_t interval)
 {
 	// 表示処理
@@ -1215,7 +1331,7 @@ void App::Present(uint32_t interval)
 
 	// 現在のフェンスカウンターを取得
 	const auto currentFenceValue = m_FenceCounter[m_FrameIndex];
-	// ここまでにCommandQueueに設定されたコマンドリス���を実行すると
+	// ここまでにCommandQueueに設定されたコマンドリストを実行すると
 	// フェンスはcurrentFenceValueの値になる
 	m_pQueue->Signal(m_pFence.Get(), currentFenceValue);
 
@@ -1227,7 +1343,7 @@ void App::Present(uint32_t interval)
 	{
 		// フェンスの値が特定の値になったとき、イベントをシグナル状態にする
 		m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
-		// フェンスイベントがシグナル状態になるので or タイムアウト間隔が経過するまで待機する
+		// フェンスイベントがシグ���ル状態になるので or タイムアウト間隔が経過するまで待機する
 		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
 	}
 
@@ -1264,7 +1380,7 @@ void App::TermD3D()
 	}
 #endif
 
-	// フェンスイベントの破棄
+	// フェンスイベント���破棄
 	if (m_FenceEvent != nullptr)
 	{
 		CloseHandle(m_FenceEvent);

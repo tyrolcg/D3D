@@ -90,12 +90,12 @@ private:
 	uint32_t m_FrameIndex; // フレーム番号
 	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleRTV[FrameCount];
 
-	ComPtr<ID3D12DescriptorHeap> m_pHeapCBV_SRV_UAV; // 定数バッファビュー、シェーダリソースビュー、アンオーダードアクセスビューのディスクリプタヒープ
+	ComPtr<ID3D12DescriptorHeap> m_pHeapCBV_SRV_UAV; // 定数バッファビュー、シェーダリソースビュー、アンオーダードア���セスビューのディスクリプタヒープ
 	ComPtr<ID3D12Resource> m_pVB; // 頂点バッファ
 	ComPtr<ID3D12Resource> m_pCB[FrameCount]; // 定数バッファ
 	ComPtr<ID3D12Resource> m_pIB; // インデックスバッファ
 	ComPtr<ID3D12RootSignature> m_pRootSignature; // ルートシグニチャ
-	ComPtr<ID3D12PipelineState> m_pPSO; // パイプラインステートオブジェクト
+	ComPtr<ID3D12PipelineState> m_pPSO; // パイプラインステート���ブジェクト
 	D3D12_VERTEX_BUFFER_VIEW m_VBV; // 頂点バッファビュー
 	ConstantBufferView<Transform> m_CBV[FrameCount * 2]; // 定数バッファビュー
 	D3D12_INDEX_BUFFER_VIEW m_IBV; // インデックスバッファビュー
@@ -125,6 +125,27 @@ private:
 	ComPtr<ID3D12Resource> m_pPointLightCB;
 	UINT8* m_pPointLightCBMapped = nullptr;
 
+	// PBRマテリアルパラメータ用の定数バッファ
+	struct PBRMaterialCB {
+		float Metallic;     // 金属度（0=非金属、1=金属）
+		float Roughness;    // 粗さ（0=鏡面、1=ざらざら）
+		DirectX::XMFLOAT3 BaseColor; // ベースカラー
+		float AmbientFactor; // 環境光係数
+	};
+	PBRMaterialCB m_PBRMaterialCB;
+	
+	ComPtr<ID3D12Resource> m_pPBRMaterialCB;
+	UINT8* m_pPBRMaterialCBMapped = nullptr;
+
+	// カメラ情報用定数バッファ
+	struct CameraCB {
+		DirectX::XMFLOAT3 CamPosition;
+		DirectX::XMFLOAT3 CamTarget;
+		DirectX::XMFLOAT3 CamUp;
+	};
+	CameraCB m_CameraCB;
+	ComPtr<ID3D12Resource> m_pCameraCB;
+	UINT8* m_pCameraCBMapped = nullptr;
 
 	// private methods
 	bool InitApp();

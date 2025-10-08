@@ -41,6 +41,13 @@ cbuffer MaterialParams : register(b2)
     float  AmbientFactor;  // 環境光係数
 }
 
+// カメラ位置
+cbuffer CameraBuffer : register(b3)
+{
+    float3 CameraPosition; // カメラ位置
+    float3 CameraDirection; // カメラ方向
+    float3 CameraUp; // カメラ上方向
+}
 // テクスチャとサンプラー
 Texture2D    AlbedoMap     : register(t0);
 SamplerState DefaultSampler : register(s0);
@@ -97,13 +104,13 @@ float3 F_Schlick(float HoV, float3 F0)
 // ピクセルシェーダー
 float4 ps_main(VSOutput input) : SV_TARGET
 {
-    // サンプルテクスチャ
+    // テクスチャ
     float4 albedo = AlbedoMap.Sample(DefaultSampler, input.Uv);
     float3 baseColor = albedo.rgb * BaseColor;
 
     // 基本的なベクトル
     float3 N = normalize(input.Normal);
-    float3 V = normalize(-input.WorldPos); // カメラ位置が原点と仮定
+    float3 V = normalize(CameraPosition - input.WorldPos);
     float3 L = normalize(LightPosition - input.WorldPos);
     float3 H = normalize(V + L);
 
@@ -120,7 +127,7 @@ float4 ps_main(VSOutput input) : SV_TARGET
     // メタリック/ラフネスワークフロー
     float3 F0 = lerp(F0_NON_METAL, baseColor.rgb, Metallic);
 
-    // Cook-Torranceマイクロファセットモデル
+    // マイクロファセットモデル
     float D = D_GGX(NoH, Roughness);
     float G = G_Smith(NoV, NoL, Roughness);
     float3 F = F_Schlick(HoV, F0);
@@ -134,16 +141,16 @@ float4 ps_main(VSOutput input) : SV_TARGET
     // 最終的なライティング
     float3 directLight = (diffuse + specular) * LightColor * LightIntensity * NoL * attenuation;
 
-    // 環��光
+    // 環境光
     float3 ambient = baseColor * AmbientFactor;
 
     // 最終的な色
     float3 finalColor = directLight + ambient;
 
-    // トーンマッピング（シンプルなReinhard）
+    // ラインハルトトーンマッピング
     finalColor = finalColor / (finalColor + 1.0);
 
-    // ガンマ補正（必要な場合）
+    // ガンマ補正
     finalColor = pow(finalColor, 1.0/2.2);
 
     return float4(finalColor, albedo.a);

@@ -28,6 +28,13 @@ cbuffer PointLightBuffer : register(b1)
 	float  LightAttenuation;
 }
 
+cbuffer CameraBuffer : register(b3)
+{
+	float3 CameraPosition; // カメラ位置
+	float3 CameraDirection; // カメラ方向
+	float3 CameraUp; // カメラ上方向
+}
+
 VSOutput main(VSInput input) 
 {
 	VSOutput output = (VSOutput)0;
