@@ -56,6 +56,7 @@ struct WorldCB
 struct SphereInstance
 {
 	DirectX::XMFLOAT3 Position;
+	int MaterialIndex;
 };
 
 struct Texture
@@ -150,10 +151,10 @@ private:
 		DirectX::XMFLOAT3 BaseColor; // ベースカラー
 		float AmbientFactor; // 環境光係数
 	};
-	PBRMaterialCB m_PBRMaterialCB;
+	std::vector<PBRMaterialCB> m_PBRMaterialCB;
 	
-	ComPtr<ID3D12Resource> m_pPBRMaterialCB;
-	UINT8* m_pPBRMaterialCBMapped = nullptr;
+	std::vector<ComPtr<ID3D12Resource>> m_pPBRMaterialCB;
+	std::vector<UINT8*> m_pPBRMaterialCBMapped;
 
 	// カメラ情報用定数バッファ
 	struct CameraCB {

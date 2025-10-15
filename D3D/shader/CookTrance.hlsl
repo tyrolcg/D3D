@@ -108,7 +108,8 @@ float3 F_Schlick(float HoV, float3 F0)
 float4 ps_main(VSOutput input) : SV_TARGET
 {
     // サンプルテクスチャ
-    float4 albedo = AlbedoMap.Sample(DefaultSampler, input.Uv);
+    //float4 albedo = AlbedoMap.Sample(DefaultSampler, input.Uv);
+	float4 albedo = float4(1.0, 1.0, 1.0, 1.0);
     float3 baseColor = albedo.rgb * BaseColor;
 
     // 基本的なベクトル

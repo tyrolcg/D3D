@@ -43,7 +43,7 @@ App::App(uint32_t width, uint32_t height)
 	, m_HandleRTV{}
 	, m_IBV{}
 	, m_VBV{}
-	, m_PointLight(DirectX::XMFLOAT3(4.0f, 4.0f, 4.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), 10.0f, 0.2f)
+	, m_PointLight(DirectX::XMFLOAT3(40.0f, 40.0f, 40.0f), DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f), 500.0f, 0.2f)
 {
 	// do nothing
 }
@@ -558,13 +558,16 @@ bool App::OnInit()
     
 	// 複数の球体インスタンスを初期化
 	m_SphereInstances.clear();
-	// 3x3のグリッド状に球体を配置
+	// グリッド状に球体を配置
 	m_SphereInstances.clear();
 	float spacing = 3.0f; // 球同士の間隔
-	for (int x = -SphereColCount / 2; x <= SphereColCount / 2; ++x) {
-		for (int y = -SphereRowCount / 2; y <= SphereRowCount / 2; ++y) {
+	for (int x = 0; x < SphereColCount; ++x) {
+		for (int y = 0; y < SphereRowCount; ++y) {
 			SphereInstance instance;
-			instance.Position = DirectX::XMFLOAT3(x * spacing, y * spacing, 0);
+			int px = x - SphereColCount / 2;
+			int py = y - SphereRowCount / 2;
+			instance.Position = DirectX::XMFLOAT3(px * spacing, py * spacing, 0);
+			instance.MaterialIndex = y * SphereColCount + x;
 			m_SphereInstances.push_back(instance);
 		}
 	}
@@ -1125,52 +1128,65 @@ bool App::OnInit()
 
 	// PBRマテリアル用定数バッファの生成・初期化
 	{
-		D3D12_HEAP_PROPERTIES prop = {};
-		prop.Type = D3D12_HEAP_TYPE_UPLOAD;
-		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		prop.CreationNodeMask = 1;
-		prop.VisibleNodeMask = 1;
+		int materialCount = SphereRowCount * SphereColCount;
+		m_pPBRMaterialCB.resize(materialCount);
+		m_pPBRMaterialCBMapped.resize(materialCount);
+		m_PBRMaterialCB.resize(materialCount);
+		for (int col = 0; col < SphereColCount; col++)
+		{
+			for (int row = 0; row < SphereRowCount; row++)
+			{
+				int materialIndex = row * SphereColCount + col;
 
-		D3D12_RESOURCE_DESC cbDesc = {};
-		cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		cbDesc.Alignment = 0;
-		cbDesc.Width = (sizeof(PBRMaterialCB) + 255) & ~255; // 256バイトアラインメント
-		cbDesc.Height = 1;
-		cbDesc.DepthOrArraySize = 1;
-		cbDesc.MipLevels = 1;
-		cbDesc.Format = DXGI_FORMAT_UNKNOWN;
-		cbDesc.SampleDesc.Count = 1;
-		cbDesc.SampleDesc.Quality = 0;
-		cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		cbDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+				D3D12_HEAP_PROPERTIES prop = {};
+				prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+				prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+				prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+				prop.CreationNodeMask = 1;
+				prop.VisibleNodeMask = 1;
 
-		auto hr = m_pDevice->CreateCommittedResource(
-			&prop,
-			D3D12_HEAP_FLAG_NONE,
-			&cbDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(m_pPBRMaterialCB.GetAddressOf())
-		);
-		if (FAILED(hr)) {
-			std::cerr << "Failed to create PBRMaterial constant buffer." << std::endl;
-			return false;
+				D3D12_RESOURCE_DESC cbDesc = {};
+				cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+				cbDesc.Alignment = 0;
+				cbDesc.Width = (sizeof(PBRMaterialCB) + 255) & ~255; // 256バイトアラインメント
+				cbDesc.Height = 1;
+				cbDesc.DepthOrArraySize = 1;
+				cbDesc.MipLevels = 1;
+				cbDesc.Format = DXGI_FORMAT_UNKNOWN;
+				cbDesc.SampleDesc.Count = 1;
+				cbDesc.SampleDesc.Quality = 0;
+				cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+				cbDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+				auto hr = m_pDevice->CreateCommittedResource(
+					&prop,
+					D3D12_HEAP_FLAG_NONE,
+					&cbDesc,
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(m_pPBRMaterialCB[materialIndex].GetAddressOf())
+				);
+				if (FAILED(hr)) {
+					std::cerr << "Failed to create PBRMaterial constant buffer." << std::endl;
+					return false;
+				}
+				// マッピング
+				hr = m_pPBRMaterialCB[materialIndex]->Map(0, nullptr, reinterpret_cast<void**>(&m_pPBRMaterialCBMapped[materialIndex]));
+				if (FAILED(hr)) {
+					std::cerr << "Failed to map PBRMaterial constant buffer." << std::endl;
+					return false;
+				}
+				// デフォルト値の設定
+				m_PBRMaterialCB[materialIndex].Metallic = 0.3f * row + 0.1f;
+				m_PBRMaterialCB[materialIndex].Roughness = 0.2f * col + 0.1f;
+				m_PBRMaterialCB[materialIndex].BaseColor = DirectX::XMFLOAT3(0.8f, 0.8f, 0.8f);
+				m_PBRMaterialCB[materialIndex].AmbientFactor = 0.5f;
+
+				// データをバッファにコピー
+				memcpy(m_pPBRMaterialCBMapped[materialIndex], &m_PBRMaterialCB[materialIndex], sizeof(PBRMaterialCB));
+			}
 		}
-		// マッピング
-		hr = m_pPBRMaterialCB->Map(0, nullptr, reinterpret_cast<void**>(&m_pPBRMaterialCBMapped));
-		if (FAILED(hr)) {
-			std::cerr << "Failed to map PBRMaterial constant buffer." << std::endl;
-			return false;
-		}
-		// デフォルト値の設定
-		m_PBRMaterialCB.Metallic = 0.1f;
-		m_PBRMaterialCB.Roughness = 0.0f;
-		m_PBRMaterialCB.BaseColor = DirectX::XMFLOAT3(0.8f, 0.8f, 0.8f);
-		m_PBRMaterialCB.AmbientFactor = 0.5f;
 
-		// データをバッファにコピー
-		memcpy(m_pPBRMaterialCBMapped, &m_PBRMaterialCB, sizeof(PBRMaterialCB));
 	}
 
 	// カメラ情報の定数バッファ
@@ -1368,8 +1384,7 @@ void App::Render()
 
         // ポイントライト用定数バッファをb1にセット
         m_pCmdList->SetGraphicsRootConstantBufferView(2, m_pPointLightCB->GetGPUVirtualAddress());
-        // PBRマテリアルパラメータ用定数バッファをb2にセット
-        m_pCmdList->SetGraphicsRootConstantBufferView(3, m_pPBRMaterialCB->GetGPUVirtualAddress());
+
         // カメラ情報用定数バッファをb3にセット
         m_pCmdList->SetGraphicsRootConstantBufferView(4, m_pCameraCB->GetGPUVirtualAddress());
         // テクスチャをt0にセット
@@ -1380,7 +1395,9 @@ void App::Render()
         size_t sphereCount = m_SphereInstances.size();
         for (size_t i = 0; i < sphereCount; ++i) {
             size_t cbIndex = m_FrameIndex * sphereCount + i;
+			int materialIndex = m_SphereInstances[i].MaterialIndex;
             m_pCmdList->SetGraphicsRootConstantBufferView(0, m_pCB[cbIndex]->GetGPUVirtualAddress());
+			m_pCmdList->SetGraphicsRootConstantBufferView(3, m_pPBRMaterialCB[materialIndex]->GetGPUVirtualAddress());
             m_pCmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
         }
     }
