@@ -31,6 +31,23 @@ struct ConstantBufferView
 	T* pBuffer; // バッファ先頭アドレス
 };
 
+// PBRマテリアルパラメータ用の定数バッファ
+struct PBRMaterialCB
+{
+	DirectX::XMFLOAT3 BaseColor; // ベースカラー
+	float Metallic;     // 金属度（0=非金属、1=金属）
+	float Roughness;    // 粗さ（0=鏡面、1=ざらざら）
+	float Subsurface;   // サブサーフェスの強さ
+	float Specular; // スペキュラーの強さ
+	float SpecularTint; // スペキュラーの色をベースに近づける度合い
+	float Anisotropic; // ハイライトの異方性
+	float Sheen; // 布のような表面の微小なハイライト
+	float SheenTint; // sheenの色をベースに近づける度合い
+	float Clearcoat; // スペキュラーローブの強さ
+	float ClearcoatGloss; // スペキュラーローブの光沢度
+	float AmbientFactor; // 環境光係数
+};
+
 // structure definition
 struct Vertex
 {
@@ -90,7 +107,7 @@ private:
 
 	static const uint32_t FrameCount = 2; // フレームバッファ数
 	static const uint32_t MaxSphereCount = 10; // 最大の球体数
-	static const int SphereRowCount = 3; // 球体の行数
+	static const int SphereRowCount = 2; // 球体の行数
 	static const int SphereColCount = 5; // 球体の列数
 	
 	std::vector<SphereInstance> m_SphereInstances; // 球体インスタンス情報
@@ -117,6 +134,7 @@ private:
 	ComPtr<ID3D12Resource> m_pIB; // インデックスバッファ
 	ComPtr<ID3D12RootSignature> m_pRootSignature; // ルートシグニチャ
 	ComPtr<ID3D12PipelineState> m_pPSO; // パイプラインステートオブジェクト
+	ComPtr<ID3D12PipelineState> m_pPSO2;
 	D3D12_VERTEX_BUFFER_VIEW m_VBV; // 頂点バッファビュー
 	std::vector<ConstantBufferView<Transform>> m_CBV; // 定数バッファビュー (FrameCount * MaxSphereCount)
 	D3D12_INDEX_BUFFER_VIEW m_IBV; // インデックスバッファビュー
@@ -144,13 +162,6 @@ private:
 	ComPtr<ID3D12Resource> m_pPointLightCB;
 	UINT8* m_pPointLightCBMapped = nullptr;
 
-	// PBRマテリアルパラメータ用の定数バッファ
-	struct PBRMaterialCB {
-		float Metallic;     // 金属度（0=非金属、1=金属）
-		float Roughness;    // 粗さ（0=鏡面、1=ざらざら）
-		DirectX::XMFLOAT3 BaseColor; // ベースカラー
-		float AmbientFactor; // 環境光係数
-	};
 	std::vector<PBRMaterialCB> m_PBRMaterialCB;
 	
 	std::vector<ComPtr<ID3D12Resource>> m_pPBRMaterialCB;

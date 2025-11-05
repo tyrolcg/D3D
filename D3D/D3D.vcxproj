@@ -41,15 +41,32 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <ClCompile Include="..\Library\imgui\imgui.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\Library\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\App.cpp" />
     <ClCompile Include="src\FileUtil.cpp" />
+    <ClCompile Include="src\ImGuiIntegration.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\PointLight.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Library\imgui\imconfig.h" />
+    <ClInclude Include="..\Library\imgui\imgui.h" />
+    <ClInclude Include="..\Library\imgui\imgui_impl_dx12.h" />
+    <ClInclude Include="..\Library\imgui\imgui_impl_win32.h" />
+    <ClInclude Include="..\Library\imgui\imgui_internal.h" />
+    <ClInclude Include="..\Library\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\Library\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\Library\imgui\imstb_truetype.h" />
     <ClInclude Include="include\App.h" />
     <ClInclude Include="include\FileUtil.h" />
+    <ClInclude Include="include\ImGuiIntegration.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\PointLight.h" />
   </ItemGroup>

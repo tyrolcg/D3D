@@ -6,6 +6,7 @@
 #include <cassert>
 #include "Mesh.h" 
 #include "PointLight.h"
+#include "ImGuiIntegration.h"
 
 namespace /* anonymous */
 {
@@ -15,8 +16,11 @@ namespace /* anonymous */
 std::vector<Mesh> App::m_Meshes;
 std::vector<Material> App::m_Materials;
 
-std::wstring _vsPath = L"D3D/shader/CookTranceVS.cso";
-std::wstring _psPath = L"D3D/shader/CookTrancePS.cso";
+std::wstring _vsPath = L"D3D/shader/DisneyVS.cso";
+std::wstring _psPath = L"D3D/shader/DisneyPS.cso";
+
+std::wstring _cookTorranceVSPath = L"D3D/shader/CookTorranceVS.cso";
+std::wstring _cookTorrancePSPath = L"D3D/shader/CookTorrancePS.cso";
 
 template<typename T>
 void SafeRelease(T **ppT)
@@ -1013,14 +1017,19 @@ bool App::OnInit()
 		
 		ComPtr<ID3DBlob> pVSBlob;
 		ComPtr<ID3DBlob> pPSBlob;
+		ComPtr<ID3DBlob> pCookTorranceVSBlob;
+		ComPtr<ID3DBlob> pCookTorrancePSBlob;
 		
-		// HLSLソースコードからシェーダをコンパイルしておく
+		// NOTE: HLSLソースコードからシェーダをコンパイルしておく
 		std::wstring shaderPath;
 		std::wstring vsPath;
 		std::wstring psPath;
+		std::wstring cookTorranceVsPath;
+		std::wstring cookTorrancePsPath;
+
 		if (!SearchFilePath(_vsPath.c_str(), vsPath))
 		{
-			std::cerr << "Failed to find vertex shader file (SampleVS.cso)." << std::endl;
+			std::cerr << "Failed to find vertex shader file." << std::endl;
 			return false;
 		}
 		if (!SearchFilePath(_psPath.c_str(), psPath))
@@ -1028,6 +1037,19 @@ bool App::OnInit()
 			std::cerr << "Failed to find pixel shader file (SamplePS.cso)." << std::endl;
 			return false;
 		}
+
+		// Cook-Torranceシェーダ読み込み
+		if (!SearchFilePath(_cookTorranceVSPath.c_str(), cookTorranceVsPath))
+		{
+			std::cerr << "Failed to find vertex shader file." << std::endl;
+			return false;
+		}
+		if (!SearchFilePath(_cookTorrancePSPath.c_str(), cookTorrancePsPath))
+		{
+			std::cerr << "Failed to find pixel shader file." << std::endl;
+			return false;
+		}
+
 
 		auto hr = D3DReadFileToBlob(vsPath.c_str(), pVSBlob.GetAddressOf());
 		if (FAILED(hr))
@@ -1039,6 +1061,18 @@ bool App::OnInit()
 		if (FAILED(hr))
 		{
 			std::cerr << "Failed to read pixel shader file." << std::endl;
+			return false;
+		}
+		hr = D3DReadFileToBlob(cookTorranceVsPath.c_str(), pCookTorranceVSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			std::cerr << "Failed to read Cook-Torrance vertex shader file." << std::endl;
+			return false;
+		}
+		hr = D3DReadFileToBlob(cookTorrancePsPath.c_str(), pCookTorrancePSBlob.GetAddressOf());
+		if (FAILED(hr))
+		{
+			std::cerr << "Failed to read Cook-Torrance pixel shader file." << std::endl;
 			return false;
 		}
 
@@ -1063,7 +1097,7 @@ bool App::OnInit()
 		psoDesc.SampleMask = UINT_MAX; // 全サンプル有効
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形プリミティブ
 		psoDesc.NumRenderTargets = 1; // レンダーターゲットは1つ
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせ��)
+		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせる)
 		psoDesc.DSVFormat = depthStencilDesc.DepthEnable ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_UNKNOWN; // 深度ステンシルビューのフォーマット
 		psoDesc.SampleDesc.Count = 1; // マルチサンプリングしない
 		psoDesc.SampleDesc.Quality = 0; // 標準品質レベル
@@ -1077,6 +1111,32 @@ bool App::OnInit()
 			return false;
 		}
 
+		// Cook-Torranceパイプラインステートを作成
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc2 = {};
+		psoDesc2.InputLayout = inputLayout; // 頂点入力レイアウト
+		psoDesc2.pRootSignature = m_pRootSignature.Get(); // ルートシグネチャ
+		psoDesc2.VS = { pCookTorranceVSBlob->GetBufferPointer(), pCookTorranceVSBlob->GetBufferSize() }; // 頂点シェーダ
+		psoDesc2.PS = { pCookTorrancePSBlob->GetBufferPointer(), pCookTorrancePSBlob->GetBufferSize() }; // ピクセルシェーダ
+		psoDesc2.BlendState = blendState; // ブレンドステート
+		psoDesc2.RasterizerState = rasterizerDesc; // ラスタライザステート
+		psoDesc.DepthStencilState = depthStencilDesc; // 深度バッファを使用
+		psoDesc2.DepthStencilState.StencilEnable = false; // ステンシルバッファを使用しない
+		psoDesc2.SampleMask = UINT_MAX; // 全サンプル有効
+		psoDesc2.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // 三角形プリミティブ
+		psoDesc2.NumRenderTargets = 1; // レンダーターゲットは1つ
+		psoDesc2.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // レンダーターゲットのフォーマット (SwapChainのFormatと合わせる)
+		psoDesc2.DSVFormat = depthStencilDesc.DepthEnable ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_UNKNOWN; // 深度ステンシルビューのフォーマット
+		psoDesc2.SampleDesc.Count = 1; // マルチサンプリングしない
+		psoDesc2.SampleDesc.Quality = 0; // 標準品質レベル
+		psoDesc2.NodeMask = 0; // 単一GPUノード
+
+		// パイプラインステートを作成
+		hr = m_pDevice->CreateGraphicsPipelineState(&psoDesc2, IID_PPV_ARGS(m_pPSO2.GetAddressOf()));
+		if (FAILED(hr))
+		{
+			std::cerr << "Failed to create graphics pipeline state. hr=0x" << std::hex << hr << std::endl;
+			return false;
+		}
 	}
 	// PointLight用定数バッファの生成・初期化
 	{
@@ -1177,9 +1237,17 @@ bool App::OnInit()
 					return false;
 				}
 				// デフォルト値の設定
-				m_PBRMaterialCB[materialIndex].Metallic = 0.3f * row + 0.1f;
+				m_PBRMaterialCB[materialIndex].Metallic = 1;
 				m_PBRMaterialCB[materialIndex].Roughness = 0.2f * col + 0.1f;
-				m_PBRMaterialCB[materialIndex].BaseColor = DirectX::XMFLOAT3(0.8f, 0.8f, 0.8f);
+				m_PBRMaterialCB[materialIndex].Subsurface = 0;
+				m_PBRMaterialCB[materialIndex].BaseColor = DirectX::XMFLOAT3(0.5f, 0.5f, 1.0f);
+				m_PBRMaterialCB[materialIndex].Specular = 0;
+				m_PBRMaterialCB[materialIndex].SpecularTint = 0;
+				m_PBRMaterialCB[materialIndex].Anisotropic = 0;
+				m_PBRMaterialCB[materialIndex].Sheen = 0;
+				m_PBRMaterialCB[materialIndex].SheenTint = 0;
+				m_PBRMaterialCB[materialIndex].Clearcoat = 0;
+				m_PBRMaterialCB[materialIndex].ClearcoatGloss = 0;
 				m_PBRMaterialCB[materialIndex].AmbientFactor = 0.5f;
 
 				// データをバッファにコピー
@@ -1285,6 +1353,12 @@ bool App::OnInit()
 		// データをバッファにコピー
 		memcpy(m_pWorldCBMapped, &m_WorldCB, sizeof(WorldCB));
 	}
+
+	//// ImGUIの初期化
+	//if (!ImGui_Init(m_hWnd, m_pDevice.Get(), m_pQueue.Get(), FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM)) {
+	//	std::cerr << "Failed to initialize ImGui." << std::endl;
+	//	return false;
+	//}
 	return true;
 }
 
@@ -1317,6 +1391,14 @@ void App::Render()
 			m_CBV[cbIndex].pBuffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fovY, aspect, 0.1f, 10000.0f);
 		}
 	}
+
+	//// --- ImGui: フレーム開始とUI構築 ---
+	//ImGui_NewFrame();
+	//// ImGui に表示したいUIをここで構築する（例：マテリアルエディタ）
+	//// m_PBRMaterialCB : std::vector<PBRMaterialCB>
+	//// m_pPBRMaterialCBMapped : std::vector<PBRMappedPtr>
+	//ImGui_DrawMaterialEditor(m_PBRMaterialCB, m_pPBRMaterialCBMapped);
+
 
 	// コマンドの記録を開始するための初期化処理
 	m_pCmdAllocator[m_FrameIndex]->Reset();
@@ -1371,7 +1453,7 @@ void App::Render()
     {
         m_pCmdList->SetGraphicsRootSignature(m_pRootSignature.Get());
         m_pCmdList->SetDescriptorHeaps(1, m_pHeapCBV_SRV_UAV.GetAddressOf());
-        m_pCmdList->SetPipelineState(m_pPSO.Get());
+        //m_pCmdList->SetPipelineState(m_pPSO.Get());
 
         m_pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_pCmdList->IASetVertexBuffers(0, 1, &m_VBV);
@@ -1392,14 +1474,28 @@ void App::Render()
         
         // 各球体インスタンスの描画
         auto indexCount = static_cast<UINT>(m_Meshes[0].Indices.size());
-        size_t sphereCount = m_SphereInstances.size();
-        for (size_t i = 0; i < sphereCount; ++i) {
-            size_t cbIndex = m_FrameIndex * sphereCount + i;
+		const size_t sphereCount = m_SphereInstances.size();
+		for (size_t i = 0; i < sphereCount; ++i) {
+			size_t cbIndex = m_FrameIndex * sphereCount + i;
+			const auto& sphere = m_SphereInstances[i];
+
+			// 上行（Y が大きい側）を Disney、下行を CookTorrance に割り当てる
+			// しきい値は 0.0f（配置時に +/- で分かれている想定）
+			if (sphere.Position.y >= 0.0f) {
+				if (m_pPSO) m_pCmdList->SetPipelineState(m_pPSO.Get());      // Disney
+			}
+			else {
+				if (m_pPSO2) m_pCmdList->SetPipelineState(m_pPSO2.Get());    // CookTorrance
+			}
+
 			int materialIndex = m_SphereInstances[i].MaterialIndex;
-            m_pCmdList->SetGraphicsRootConstantBufferView(0, m_pCB[cbIndex]->GetGPUVirtualAddress());
-			m_pCmdList->SetGraphicsRootConstantBufferView(3, m_pPBRMaterialCB[materialIndex]->GetGPUVirtualAddress());
-            m_pCmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
-        }
+
+			// インスタンス固有の CBV をセット
+			m_pCmdList->SetGraphicsRootConstantBufferView(0, m_pCB[cbIndex]->GetGPUVirtualAddress()); // b0 (Transform)
+			m_pCmdList->SetGraphicsRootConstantBufferView(3, m_pPBRMaterialCB[materialIndex]->GetGPUVirtualAddress()); // b2 (Material)
+
+			m_pCmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
+		}
     }
 
 	// リソースバリアの設定
@@ -1413,6 +1509,9 @@ void App::Render()
 	// リソースバリアを追加
 	m_pCmdList->ResourceBarrier(1, &barrier);
 
+
+	//ImGui_Render(m_pCmdList.Get());
+
 	// コマンドの記録を終了
 	m_pCmdList->Close();
 
@@ -1422,6 +1521,7 @@ void App::Render()
 		1, // コマンドリストの数
 		ppCmdLists // コマンドリスト配列のポインタ
 	);
+
 
 	// 画面に表示
 	Present(1);
@@ -1525,6 +1625,7 @@ void App::TermD3D()
 	m_pRootSignature.Reset();
 	// パイプラインステートの破棄
 	m_pPSO.Reset();
+	m_pPSO2.Reset();
 	// 深度バッファの破棄
 	m_pDB.Reset();
 	// DSVヒープの破棄
@@ -1540,6 +1641,9 @@ void App::TermD3D()
 
 void App::OnTerm() 
 {
+	// ImGui シャットダウン
+	//ImGui_Shutdown();
+
 	for (auto i = 0; i < FrameCount; i++)
 	{
 		if (m_pCB[i].Get() != nullptr)
