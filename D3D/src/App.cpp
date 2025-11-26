@@ -1240,7 +1240,7 @@ bool App::OnInit()
 				m_PBRMaterialCB[materialIndex].Metallic = 1;
 				m_PBRMaterialCB[materialIndex].Roughness = 0.2f * col + 0.1f;
 				m_PBRMaterialCB[materialIndex].Subsurface = 0;
-				m_PBRMaterialCB[materialIndex].BaseColor = DirectX::XMFLOAT3(0.5f, 0.5f, 1.0f);
+				m_PBRMaterialCB[materialIndex].BaseColor = DirectX::XMFLOAT3(0.4f, 0.4f, 0.8f);
 				m_PBRMaterialCB[materialIndex].Specular = 0;
 				m_PBRMaterialCB[materialIndex].SpecularTint = 0;
 				m_PBRMaterialCB[materialIndex].Anisotropic = 0;
@@ -1248,7 +1248,7 @@ bool App::OnInit()
 				m_PBRMaterialCB[materialIndex].SheenTint = 0;
 				m_PBRMaterialCB[materialIndex].Clearcoat = 0;
 				m_PBRMaterialCB[materialIndex].ClearcoatGloss = 0;
-				m_PBRMaterialCB[materialIndex].AmbientFactor = 0.5f;
+				m_PBRMaterialCB[materialIndex].AmbientFactor = 0.3f;
 
 				// データをバッファにコピー
 				memcpy(m_pPBRMaterialCBMapped[materialIndex], &m_PBRMaterialCB[materialIndex], sizeof(PBRMaterialCB));
